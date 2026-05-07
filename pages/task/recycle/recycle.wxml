@@ -1,0 +1,34 @@
+<!--pages/task/recycle/recycle.wxml-->
+<view class="page {{theme}}">
+  <view class="header">
+    <view class="back-btn" bindtap="goBack">← 返回</view>
+    <view class="title">回收站</view>
+    <view class="clear-btn" wx:if="{{recycleList.length > 0}}" bindtap="clearAll">清空</view>
+  </view>
+
+  <view wx:if="{{recycleList.length === 0}}" class="empty-state">
+    <view class="empty-icon">🗑️</view>
+    <view class="empty-text">回收站为空</view>
+    <view class="empty-tip">完成的任务会自动移到这里</view>
+  </view>
+
+  <view wx:else class="recycle-list">
+    <view class="recycle-card" wx:for="{{recycleList}}" wx:key="id">
+      <view class="task-header">
+        <view class="task-checkbox checked">
+          <view class="check-icon">✓</view>
+        </view>
+        <view class="task-info">
+          <view class="task-title completed">{{item.title}}</view>
+          <view class="task-meta">
+            <view class="completed-time">✅ 完成于 {{formatTime(item.completedTime)}}</view>
+          </view>
+        </view>
+      </view>
+      <view class="task-actions">
+        <view class="action-btn restore" bindtap="restoreTask" data-id="{{item.id}}">🔄 恢复</view>
+        <view class="action-btn delete" bindtap="deleteTask" data-id="{{item.id}}">🗑️ 删除</view>
+      </view>
+    </view>
+  </view>
+</view>

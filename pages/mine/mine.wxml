@@ -1,0 +1,269 @@
+<!--pages/mine/mine.wxml-->
+<view class="page {{theme}}">
+  <view class="user-section">
+    <view class="avatar-wrap" bindtap="changeAvatar">
+      <image wx:if="{{avatarUrl}}" class="avatar" src="{{avatarUrl}}" mode="aspectFill"/>
+      <view wx:else class="avatar-default">👤</view>
+      <view class="avatar-edit">📷</view>
+    </view>
+    <view class="user-info">
+      <view class="nickname-row">
+        <text class="nickname">{{nickName}}</text>
+        <text class="edit-icon" bindtap="editNickname">✏️</text>
+      </view>
+      <view class="signature-row">
+        <text class="signature">{{signature || '点击设置个性签名'}}</text>
+        <text class="edit-icon" bindtap="editSignature">✏️</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">个人设置</view>
+    <view class="menu-list">
+      <view class="menu-item" bindtap="showNotificationModal">
+        <view class="menu-icon">🔔</view>
+        <view class="menu-text">通知设置</view>
+        <view class="menu-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="showPrivacyModal">
+        <view class="menu-icon">🛡️</view>
+        <view class="menu-text">隐私设置</view>
+        <view class="menu-arrow">›</view>
+      </view>
+
+      <view class="menu-item" bindtap="showPreferenceModal">
+        <view class="menu-icon">⚙️</view>
+        <view class="menu-text">学习偏好</view>
+        <view class="menu-arrow">›</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">主题设置</view>
+    <view class="theme-options">
+      <view class="theme-option {{theme === 'light' ? 'active' : ''}}" bindtap="setTheme" data-theme="light">
+        <view class="theme-preview light"></view>
+        <view class="theme-name">浅色模式</view>
+        <view class="theme-check" wx:if="{{theme === 'light'}}">✓</view>
+      </view>
+      <view class="theme-option {{theme === 'dark' ? 'active' : ''}}" bindtap="setTheme" data-theme="dark">
+        <view class="theme-preview dark"></view>
+        <view class="theme-name">深色模式</view>
+        <view class="theme-check" wx:if="{{theme === 'dark'}}">✓</view>
+      </view>
+      <view class="theme-option {{theme === 'ocean' ? 'active' : ''}}" bindtap="setTheme" data-theme="ocean">
+        <view class="theme-preview ocean"></view>
+        <view class="theme-name">海洋蓝</view>
+        <view class="theme-check" wx:if="{{theme === 'ocean'}}">✓</view>
+      </view>
+      <view class="theme-option {{theme === 'sunset' ? 'active' : ''}}" bindtap="setTheme" data-theme="sunset">
+        <view class="theme-preview sunset"></view>
+        <view class="theme-name">日落橙</view>
+        <view class="theme-check" wx:if="{{theme === 'sunset'}}">✓</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">数据管理</view>
+    <view class="menu-list">
+      <view class="menu-item" bindtap="clearCache">
+        <view class="menu-icon">🗑️</view>
+        <view class="menu-text">清除缓存</view>
+        <view class="menu-arrow">›</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">关于</view>
+    <view class="menu-list">
+      <view class="menu-item" bindtap="showAbout">
+        <view class="menu-icon">ℹ️</view>
+        <view class="menu-text">关于我们</view>
+        <view class="menu-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="checkUpdate">
+        <view class="menu-icon">🔄</view>
+        <view class="menu-text">检查更新</view>
+        <view class="menu-arrow">›</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="logout-btn" bindtap="logout">退出登录</view>
+
+  <!-- 昵称修改弹窗 -->
+  <view class="modal" wx:if="{{showNicknameModal}}" bindtap="closeNicknameModal">
+    <view class="modal-content" catchtap="preventClose">
+      <view class="modal-header">
+        <view class="modal-title">修改昵称</view>
+        <view class="modal-close" bindtap="closeNicknameModal">×</view>
+      </view>
+      <view class="form-group">
+        <input class="form-input" placeholder="请输入昵称" value="{{tempNickname}}" bindinput="onNicknameInput" confirm-type="done" bindconfirm="saveNickname"/>
+      </view>
+      <view class="modal-footer">
+        <button class="modal-btn cancel" bindtap="closeNicknameModal">取消</button>
+        <button class="modal-btn confirm" bindtap="saveNickname">保存</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 个性签名修改弹窗 -->
+  <view class="modal" wx:if="{{showSignatureModal}}" bindtap="closeSignatureModal">
+    <view class="modal-content" catchtap="preventClose">
+      <view class="modal-header">
+        <view class="modal-title">修改个性签名</view>
+        <view class="modal-close" bindtap="closeSignatureModal">×</view>
+      </view>
+      <view class="form-group">
+        <textarea class="form-textarea" placeholder="请输入个性签名" value="{{tempSignature}}" bindinput="onSignatureInput" auto-height maxlength="100"/>
+      </view>
+      <view class="modal-footer">
+        <button class="modal-btn cancel" bindtap="closeSignatureModal">取消</button>
+        <button class="modal-btn confirm" bindtap="saveSignature">保存</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 通知设置弹窗 -->
+  <view class="modal" wx:if="{{showNotificationModal}}" bindtap="closeNotificationModal">
+    <view class="modal-content" catchtap="preventClose">
+      <view class="modal-header">
+        <view class="modal-title">通知设置</view>
+        <view class="modal-close" bindtap="closeNotificationModal">×</view>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">任务提醒</view>
+          <view class="setting-desc">任务截止前提醒</view>
+        </view>
+        <switch checked="{{notification.taskRemind}}" bindchange="toggleNotification" data-key="taskRemind" color="#4A90D9"/>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">声音提醒</view>
+          <view class="setting-desc">播放提示音</view>
+        </view>
+        <switch checked="{{notification.sound}}" bindchange="toggleNotification" data-key="sound" color="#4A90D9"/>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">震动提醒</view>
+          <view class="setting-desc">手机震动提示</view>
+        </view>
+        <switch checked="{{notification.vibrate}}" bindchange="toggleNotification" data-key="vibrate" color="#4A90D9"/>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">每日总结</view>
+          <view class="setting-desc">每晚推送学习总结</view>
+        </view>
+        <switch checked="{{notification.dailySummary}}" bindchange="toggleNotification" data-key="dailySummary" color="#4A90D9"/>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">专注提醒</view>
+          <view class="setting-desc">番茄钟结束时提醒</view>
+        </view>
+        <switch checked="{{notification.focusRemind}}" bindchange="toggleNotification" data-key="focusRemind" color="#4A90D9"/>
+      </view>
+    </view>
+  </view>
+
+  <!-- 隐私设置弹窗 -->
+  <view class="modal" wx:if="{{showPrivacyModal}}" bindtap="closePrivacyModal">
+    <view class="modal-content" catchtap="preventClose">
+      <view class="modal-header">
+        <view class="modal-title">隐私设置</view>
+        <view class="modal-close" bindtap="closePrivacyModal">×</view>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">数据统计</view>
+          <view class="setting-desc">允许收集匿名使用数据</view>
+        </view>
+        <switch checked="{{privacy.allowStats}}" bindchange="togglePrivacy" data-key="allowStats" color="#4A90D9"/>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">学习记录</view>
+          <view class="setting-desc">保存学习历史记录</view>
+        </view>
+        <switch checked="{{privacy.saveHistory}}" bindchange="togglePrivacy" data-key="saveHistory" color="#4A90D9"/>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">位置信息</view>
+          <view class="setting-desc">用于天气等功能</view>
+        </view>
+        <switch checked="{{privacy.location}}" bindchange="togglePrivacy" data-key="location" color="#4A90D9"/>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">个性化推荐</view>
+          <view class="setting-desc">根据习惯推荐学习计划</view>
+        </view>
+        <switch checked="{{privacy.personalized}}" bindchange="togglePrivacy" data-key="personalized" color="#4A90D9"/>
+      </view>
+    </view>
+  </view>
+
+  <!-- 学习偏好弹窗 -->
+  <view class="modal" wx:if="{{showPreferenceModal}}" bindtap="closePreferenceModal">
+    <view class="modal-content" catchtap="preventClose">
+      <view class="modal-header">
+        <view class="modal-title">学习偏好</view>
+        <view class="modal-close" bindtap="closePreferenceModal">×</view>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">番茄钟时长</view>
+          <view class="setting-desc">专注时长设置</view>
+        </view>
+        <view class="preference-options">
+          <view class="pref-option {{preference.focusDuration === item.value ? 'active' : ''}}" wx:for="{{focusOptions}}" wx:key="value" bindtap="setFocusDuration" data-value="{{item.value}}">
+            {{item.label}}
+          </view>
+        </view>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">休息时长</view>
+          <view class="setting-desc">番茄钟休息时间</view>
+        </view>
+        <view class="preference-options">
+          <view class="pref-option {{preference.breakDuration === item.value ? 'active' : ''}}" wx:for="{{breakOptions}}" wx:key="value" bindtap="setBreakDuration" data-value="{{item.value}}">
+            {{item.label}}
+          </view>
+        </view>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">学习时段</view>
+          <view class="setting-desc">偏好的学习时间段</view>
+        </view>
+        <view class="time-tags">
+          <view class="tag {{item.selected ? 'selected' : ''}}" wx:for="{{timeTags}}" wx:key="index" bindtap="toggleTimeTag" data-index="{{index}}">{{item.text}}</view>
+        </view>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">学习提醒</view>
+          <view class="setting-desc">定时提醒开始学习</view>
+        </view>
+        <switch checked="{{preference.autoRemind}}" bindchange="toggleAutoRemind" color="#4A90D9"/>
+      </view>
+      <view class="setting-item">
+        <view class="setting-info">
+          <view class="setting-name">数据统计</view>
+          <view class="setting-desc">显示学习数据统计</view>
+        </view>
+        <switch checked="{{preference.showStats}}" bindchange="toggleShowStats" color="#4A90D9"/>
+      </view>
+    </view>
+  </view>
+</view>

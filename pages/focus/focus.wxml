@@ -1,0 +1,69 @@
+<!--pages/focus/focus.wxml-->
+<view class="page">
+  <view class="focus-container">
+    <view class="mode-tabs">
+      <view 
+        class="mode-tab {{currentMode === 'pomodoro' ? 'active' : ''}}" 
+        data-mode="pomodoro"
+        bindtap="switchMode"
+      >🍅 番茄钟</view>
+      <view 
+        class="mode-tab {{currentMode === 'shortBreak' ? 'active' : ''}}" 
+        data-mode="shortBreak"
+        bindtap="switchMode"
+      >☕ 短休息</view>
+      <view 
+        class="mode-tab {{currentMode === 'longBreak' ? 'active' : ''}}" 
+        data-mode="longBreak"
+        bindtap="switchMode"
+      >😴 长休息</view>
+    </view>
+
+    <view class="timer-ring">
+      <view class="ring-bg"></view>
+      <view class="ring-progress" style="background: conic-gradient(#56CCF2 0deg, #2F80ED {{progressDegrees}}deg, transparent {{progressDegrees}}deg)"></view>
+      <view class="ring-inner">
+        <view class="time-display">{{formattedTime}}</view>
+        <view class="mode-label">{{modeLabel}}</view>
+      </view>
+    </view>
+
+    <view class="timer-controls">
+      <view class="control-btn secondary" bindtap="resetTimer">↺</view>
+      <view class="control-btn primary {{isRunning ? 'running' : ''}}" bindtap="toggleTimer">
+        {{isRunning ? '⏸' : '▶'}}
+      </view>
+      <view class="control-btn secondary" bindtap="skipTimer">⏭</view>
+    </view>
+
+    <view class="stats">
+      <view class="stat-item">
+        <view class="stat-value">{{completedPomodoros}}</view>
+        <view class="stat-label">完成番茄</view>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item">
+        <view class="stat-value">{{totalFocusTime}}</view>
+        <view class="stat-label">专注时长</view>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item">
+        <view class="stat-value">{{streakDays}}</view>
+        <view class="stat-label">连续天数</view>
+      </view>
+    </view>
+
+    <view class="session-history">
+      <view class="history-title">今日专注记录</view>
+      <view class="history-items">
+        <view class="history-item" wx:for="{{sessionHistory}}" wx:key="index">
+          <view class="history-time">{{item.time}}</view>
+          <view class="history-duration">{{item.duration}}</view>
+          <view class="history-type {{item.type === 'pomodoro' ? 'pomodoro' : 'break'}}">
+            {{item.type === 'pomodoro' ? '番茄' : '休息'}}
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,182 @@
+<!--pages/task/task.wxml-->
+<view class="page {{theme}}">
+  <view class="add-btn" bindtap="showAddModal">+</view>
+  <view class="recycle-btn" bindtap="goToRecycle">🗑️</view>
+
+  <view wx:if="{{taskList.length === 0}}" class="empty-state">
+    <view class="empty-icon">📝</view>
+    <view class="empty-text">{{eisenhowerFilter === 'all' ? '暂无任务' : '该分类暂无任务'}}</view>
+    <view class="empty-tip" wx:if="{{eisenhowerFilter === 'all'}}">点击右下角 + 添加你的第一个任务</view>
+    <view class="empty-tip" wx:else>当前筛选条件下没有任务</view>
+    <view wx:if="{{eisenhowerFilter !== 'all'}}" class="back-btn" bindtap="backToAll">← 返回全部任务</view>
+  </view>
+
+  <view wx:else class="task-list">
+    <view class="eisenhower-bar">
+      <view class="eisenhower-label">优先级筛选：</view>
+      <view class="eisenhower-options">
+        <view class="eisenhower-opt {{eisenhowerFilter === 'all' ? 'active' : ''}}" bindtap="changeEisenhowerFilter" data-filter="all">全部</view>
+        <view class="eisenhower-opt {{eisenhowerFilter === 'do' ? 'active' : ''}} do" bindtap="changeEisenhowerFilter" data-filter="do">🟥 紧急重要</view>
+        <view class="eisenhower-opt {{eisenhowerFilter === 'schedule' ? 'active' : ''}} schedule" bindtap="changeEisenhowerFilter" data-filter="schedule">🟧 重要不紧急</view>
+        <view class="eisenhower-opt {{eisenhowerFilter === 'delegate' ? 'active' : ''}} delegate" bindtap="changeEisenhowerFilter" data-filter="delegate">🟨 紧急不重要</view>
+        <view class="eisenhower-opt {{eisenhowerFilter === 'eliminate' ? 'active' : ''}} eliminate" bindtap="changeEisenhowerFilter" data-filter="eliminate">⬜ 不紧急不重要</view>
+      </view>
+    </view>
+
+    <view class="sort-bar">
+      <text class="sort-label">排序方式：</text>
+      <view class="sort-options">
+        <view class="sort-opt {{sortBy === 'smart' ? 'active' : ''}}" bindtap="changeSort" data-sort="smart">智能排序</view>
+        <view class="sort-opt {{sortBy === 'deadline' ? 'active' : ''}}" bindtap="changeSort" data-sort="deadline">截止时间</view>
+        <view class="sort-opt {{sortBy === 'priority' ? 'active' : ''}}" bindtap="changeSort" data-sort="priority">优先级</view>
+        <view class="sort-opt {{sortBy === 'createTime' ? 'active' : ''}}" bindtap="changeSort" data-sort="createTime">创建时间</view>
+      </view>
+    </view>
+
+    <view class="task-card priority-{{item.priority}}" wx:for="{{taskList}}" wx:key="id" bindtap="toggleExpand" data-id="{{item.id}}">
+      <view class="priority-indicator" style="background: {{item.score >= 80 ? '#ef4444' : item.score >= 50 ? '#f59e0b' : '#22c55e'}};"></view>
+      <view class="task-header">
+        <view class="task-checkbox {{item.completed ? 'checked' : ''}}" catchtap="toggleComplete" data-id="{{item.id}}">
+          <view wx:if="{{item.completed}}" class="check-icon">✓</view>
+        </view>
+        <view class="task-info">
+          <view class="task-title {{item.completed ? 'completed' : ''}}">
+            <text class="priority-badge priority-{{item.priority}}">{{priorityLabels[item.priority]}}</text>
+            {{item.title}}
+            <view class="smart-score" wx:if=" {{!item.completed}}">
+              <view class="score-bar">
+                <view class="score-fill" style="width: {{item.score}}%; background: {{item.score >= 80 ? '#ef4444' : item.score >= 50 ? '#f59e0b' : '#22c55e'}};"></view>
+              </view>
+              <text class="score-text">{{item.score}}分</text>
+            </view>
+          </view>
+          <view class="task-meta">
+            <view class="task-countdown countdown-{{item.countdown.type}}">
+              ⏰ {{item.countdown.text}}
+            </view>
+            <view class="subtask-count" wx:if="{{item.subtasks.length > 0}}">📋 {{item.completedSubtasks}}/{{item.subtasks.length}} 子任务</view>
+          </view>
+        </view>
+        <view class="eisenhower-badge" wx:if="{{item.eisenhowerCategory === 'do'}}">🔥</view>
+        <view class="expand-icon">{{expandedTask === item.id ? '▲' : '▼'}}</view>
+      </view>
+
+      <view class="task-detail" wx:if="{{expandedTask === item.id}}">
+        <view class="task-desc">{{item.description || '暂无描述'}}</view>
+
+        <view wx:if="{{item.subtasks.length > 0}}" class="subtasks">
+          <view class="subtasks-header">
+            <view class="subtasks-title">子任务</view>
+            <view class="subtasks-progress">{{item.completedSubtasks}}/{{item.subtasks.length}}</view>
+          </view>
+          <view class="subtask-item" wx:for="{{item.subtasks}}" wx:key="id" wx:for-item="st" catchtap="toggleSubtask" data-task-id="{{item.id}}" data-sub-id="{{st.id}}">
+            <view class="subtask-checkbox {{st.completed ? 'checked' : ''}}">
+              <view wx:if="{{st.completed}}" class="check-icon">✓</view>
+            </view>
+            <view class="subtask-text {{st.completed ? 'completed' : ''}}">{{st.title}}</view>
+          </view>
+        </view>
+
+        <view class="task-actions">
+          <view class="action-btn edit" catchtap="editTask" data-id="{{item.id}}">✏️ 编辑</view>
+          <view class="action-btn delete" catchtap="deleteTask" data-id="{{item.id}}">🗑️ 删除</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal" wx:if="{{showModal}}" bindtap="closeModal">
+    <view class="modal-content" catchtap="preventClose">
+      <view class="modal-header">
+        <view class="modal-title">{{editingTask ? '编辑任务' : '添加任务'}}</view>
+        <view class="modal-close" bindtap="closeModal">×</view>
+      </view>
+
+      <view class="form-group">
+        <view class="form-label">任务名称 <text class="required">*</text></view>
+        <input class="form-input" placeholder="请输入任务名称" value="{{formData.title}}" bindinput="onInputChange" data-field="title"/>
+      </view>
+
+      <view class="form-group">
+        <view class="form-label">任务描述</view>
+        <textarea class="form-textarea" placeholder="请输入任务描述（可选）" value="{{formData.description}}" bindinput="onInputChange" data-field="description"/>
+      </view>
+
+      <view class="form-group">
+        <view class="form-label">优先级 <text class="required">*</text></view>
+        <view class="priority-options">
+          <view class="priority-option {{formData.priority === 'high' ? 'active high-active' : ''}}" bindtap="setPriority" data-priority="high">
+            <view class="priority-icon high-icon">🔥</view>
+            <view class="priority-info">
+              <view class="priority-name">高优先级</view>
+              <view class="priority-desc">紧急重要</view>
+            </view>
+          </view>
+          <view class="priority-option {{formData.priority === 'medium' ? 'active medium-active' : ''}}" bindtap="setPriority" data-priority="medium">
+            <view class="priority-icon medium-icon">⚡</view>
+            <view class="priority-info">
+              <view class="priority-name">中优先级</view>
+              <view class="priority-desc">重要不紧急</view>
+            </view>
+          </view>
+          <view class="priority-option {{formData.priority === 'low' ? 'active low-active' : ''}}" bindtap="setPriority" data-priority="low">
+            <view class="priority-icon low-icon">📌</view>
+            <view class="priority-info">
+              <view class="priority-name">低优先级</view>
+              <view class="priority-desc">可延后处理</view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-group">
+        <view class="form-label">截止时间 <text class="required">*</text></view>
+        <view class="picker-row">
+          <picker mode="date" value="{{formData.date}}" start="{{todayDate}}" bindchange="onDateChange">
+            <view class="form-picker {{formData.date ? '' : 'placeholder'}}">{{formData.date || '选择日期'}}</view>
+          </picker>
+          <picker mode="time" value="{{formData.time}}" bindchange="onTimeChange">
+            <view class="form-picker {{formData.time ? '' : 'placeholder'}}">{{formData.time || '选择时间'}}</view>
+          </picker>
+        </view>
+      </view>
+
+      <view class="form-group">
+          <view class="form-label">兴趣程度</view>
+          <view class="interest-section">
+            <view class="interest-labels">
+              <text>低</text>
+              <text>{{formData.interest}}%</text>
+              <text>高</text>
+            </view>
+            <slider 
+              class="interest-slider" 
+              min="0" 
+              max="100" 
+              value="{{formData.interest}}" 
+              bindchange="onInterestChange"
+              activeColor="#98D8C8"
+              backgroundColor="#eee"
+              block-size="20"
+            />
+          </view>
+        </view>
+
+        <view class="form-group">
+          <view class="form-label">子任务</view>
+          <view class="subtask-list">
+            <view class="subtask-input-row" wx:for="{{formData.subtasks}}" wx:key="index">
+              <input class="subtask-input" placeholder="子任务名称" value="{{formData.subtasks[index]}}" bindinput="onSubtaskInput" data-index="{{index}}"/>
+              <view class="subtask-remove" bindtap="removeSubtask" data-index="{{index}}">×</view>
+            </view>
+          </view>
+          <view class="add-subtask-btn" bindtap="addSubtask">+ 添加子任务</view>
+        </view>
+
+      <view class="modal-footer">
+        <button class="modal-btn cancel" bindtap="closeModal">取消</button>
+        <button class="modal-btn confirm" bindtap="saveTask">保存</button>
+      </view>
+    </view>
+  </view>
+</view>

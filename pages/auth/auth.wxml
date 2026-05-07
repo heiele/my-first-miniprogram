@@ -1,0 +1,16 @@
+<!--pages/auth/auth.wxml-->
+<view class="auth-page">
+  <view class="auth-card">
+    <view class="auth-logo">📚</view>
+    <view class="auth-title">学习日历</view>
+    <view class="auth-desc">您的学习规划助手</view>
+    <view class="auth-notice">
+      <view class="notice-title">申请以下权限</view>
+      <view class="notice-item">· 获取您的昵称和头像</view>
+      <view class="notice-item">· 获取日历读写权限</view>
+      <view class="notice-item">· 接收学习提醒通知</view>
+    </view>
+    <button class="auth-btn agree" open-type="getUserInfo" bindgetuserinfo="onAuthAgree">同意授权</button>
+    <button class="auth-btn disagree" bindtap="onAuthDisagree">拒绝并退出</button>
+  </view>
+</view>

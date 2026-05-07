@@ -1,35 +1,422 @@
-<!--index.wxml-->
-<scroll-view class="scrollarea" scroll-y type="list">
-  <view class="container">
-    <view class="userinfo">
-      <block wx:if="{{!hasUserInfo}}">
-        <button class="avatar-wrapper" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
-          <view class="avatar-placeholder">选择头像</view>
-        </button>
-        <view class="nickname-wrapper">
-          <text class="nickname-label">昵称</text>
-          <input type="nickname" class="nickname-input" placeholder="请输入昵称" bind:change="onInputChange" />
-        </view>
-        <button class="login-btn-main" bindtap="showLoginModal"> 登录 </button>
-      </block>
-      <block wx:else>
-        <image bindtap="bindViewTap" class="userinfo-avatar" src="{{userInfo.avatarUrl}}" mode="cover"></image>
-        <text class="userinfo-nickname">{{userInfo.nickName}}</text>
-      </block>
+<!--pages/index/index.wxml-->
+<view class="page {{theme}}">
+  <view class="greeting">
+    <view class="greeting-text">{{greeting}}，{{nickName}}</view>
+    <view class="date-text">{{todayDate}}</view>
+  </view>
+
+  <view class="quick-actions">
+    <view class="action-item" bindtap="goToTask">
+      <view class="action-icon">➕</view>
+      <view class="action-text">添加任务</view>
     </view>
-    <view class="usermotto">
-      <text class="user-motto">{{motto}}</text>
+    <view class="action-item" bindtap="goToFocus">
+      <view class="action-icon">🍅</view>
+      <view class="action-text">开始专注</view>
+    </view>
+    <view class="action-item" bindtap="viewReport">
+      <view class="action-icon">📊</view>
+      <view class="action-text">学习报告</view>
+    </view>
+    <view class="action-item" bindtap="goToCalendar">
+      <view class="action-icon">📅</view>
+      <view class="action-text">日历视图</view>
     </view>
   </view>
-</scroll-view>
 
-<view class="modal-mask" wx:if="{{showModal}}" bindtap="hideLoginModal">
-  <view class="modal-dialog" catchtap="preventClose">
-    <view class="modal-title">微信授权登录</view>
-    <view class="modal-content">登录后可使用完整功能</view>
-    <view class="modal-buttons">
-      <button class="modal-btn cancel" bindtap="hideLoginModal">暂不登录</button>
-      <button class="modal-btn confirm" open-type="getUserInfo" bindgetuserinfo="onGetUserInfo">确认登录</button>
+  <view class="section focus-section" wx:if="{{focusTasks.length > 0}}">
+    <view class="section-header">
+      <view class="section-title">🎯 今日焦点</view>
+      <view class="section-badge">优先完成</view>
+    </view>
+    <view class="focus-list">
+      <view class="focus-item" wx:for="{{focusTasks}}" wx:key="id">
+        <view class="focus-priority priority-{{item.priorityClass}}">{{item.score}}</view>
+        <view class="focus-content">
+          <view class="focus-title">{{item.event}}</view>
+          <view class="focus-deadline countdown-{{item.countdown.type}}">{{item.countdown.text}}</view>
+        </view>
+        <view class="focus-action" bindtap="toggleTodo" data-id="{{item.id}}">
+          <view class="focus-checkbox {{item.completed ? 'checked' : ''}}">
+            <text wx:if="{{item.completed}}">✓</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-header">
+      <view class="section-title">📋 今日待办</view>
+      <view class="section-badge">{{todoList.length}}项</view>
+    </view>
+    <view wx:if="{{todoList.length === 0}}" class="empty-todo">
+      <view class="empty-text">暂无待办事项</view>
+      <view class="add-todo-btn" bindtap="goToTask">+ 添加任务</view>
+    </view>
+    <view wx:else class="todo-table">
+      <view class="table-header">
+        <view class="table-col col-event">事件</view>
+        <view class="table-col col-deadline">截止</view>
+        <view class="table-col col-status">状态</view>
+      </view>
+      <view class="table-row priority-row-{{item.priority}}" wx:for="{{todoList}}" wx:key="id">
+          <view class="table-col col-event" bindtap="toggleTodo" data-id="{{item.id}}">
+            <view class="priority-dot priority-{{item.priority}}"></view>
+            <text class="{{item.completed ? 'completed-text' : ''}}">{{item.event}}</text>
+          </view>
+          <view class="table-col col-deadline">{{item.deadline}}</view>
+          <view class="table-col col-status" bindtap="toggleTodo" data-id="{{item.id}}">
+            <view class="status-tag {{item.completed ? 'status-done' : 'status-pending'}}">{{item.completed ? '✓ 已完成' : '○ 待完成'}}</view>
+          </view>
+        </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-header">
+      <view class="section-title">📈 学习统计</view>
+    </view>
+    <view class="chart-container">
+      <view class="chart-left">
+        <canvas canvas-id="pieChart" class="pie-canvas"></canvas>
+        <view class="pie-legend">
+          <view class="legend-item">
+            <view class="legend-color completed"></view>
+            <text class="legend-text">已完成 {{completedCount}}</text>
+          </view>
+          <view class="legend-item">
+            <view class="legend-color pending"></view>
+            <text class="legend-text">待完成 {{totalCount - completedCount}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="chart-right">
+        <view class="stat-item">
+          <view class="stat-number">{{completedCount}}</view>
+          <view class="stat-label">已完成</view>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-item">
+          <view class="stat-number">{{totalCount}}</view>
+          <view class="stat-label">总任务</view>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-item">
+          <view class="stat-number highlight">{{completionRate}}%</view>
+          <view class="stat-label">完成率</view>
+        </view>
+      </view>
+    </view>
+    <view class="weekly-chart">
+      <view class="weekly-title">本周完成趋势</view>
+      <view class="weekly-bars">
+        <view class="bar-item" wx:for="{{weeklyData}}" wx:key="day">
+          <view class="bar-fill" style="height: {{item.percent}}%"></view>
+          <view class="bar-label">{{item.day}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+
+
+  <view class="section goal-section">
+    <view class="section-header">
+      <view class="section-title">🎯 学习目标</view>
+      <view class="edit-btn" bindtap="showGoalModal">编辑</view>
+    </view>
+    <view class="goal-container">
+      <view class="goal-main">
+        <view class="goal-duration-card">
+          <view class="duration-icon">⏱️</view>
+          <view class="duration-info">
+            <view class="duration-label">每日学习时长</view>
+            <view class="duration-value">{{studyGoal.dailyDuration}}<text class="duration-unit">分钟</text></view>
+          </view>
+        </view>
+        <view class="goal-progress-card">
+          <view class="progress-icon">📊</view>
+          <view class="progress-info">
+            <view class="progress-label">累计打卡</view>
+            <view class="progress-value">{{studyGoal.checkInRecords ? studyGoal.checkInRecords.length : 0}}<text class="progress-unit">天</text></view>
+          </view>
+        </view>
+      </view>
+      <view class="goal-types" wx:if="{{studyGoal.types && studyGoal.types.length > 0}}">
+        <view class="goal-type-item" wx:for="{{studyGoal.types}}" wx:key="*this">
+          <view class="goal-type-tag {{isCustomType(item) ? 'custom' : ''}}">{{item}}</view>
+          <view class="goal-type-remove" bindtap="removeGoalTypeFromDisplay" data-type="{{item}}">×</view>
+        </view>
+      </view>
+      <view class="goal-deadline" wx:if="{{studyGoal.deadline}}">
+        <text class="deadline-icon">📅</text>
+        <text class="deadline-text">目标截止: </text>
+        <text class="deadline-value">{{studyGoal.deadline}}</text>
+      </view>
+      <view class="checkin-section">
+        <view class="checkin-status">
+          <text class="checkin-icon">{{todayCheckedIn ? '✅' : '⏳'}}</text>
+          <view class="checkin-info">
+            <text class="checkin-text">今日打卡</text>
+            <text class="checkin-status-text {{todayCheckedIn ? 'checked' : ''}}">
+              {{todayCheckedIn ? '已完成' : '待完成'}}
+            </text>
+          </view>
+        </view>
+        <button wx:if="{{!todayCheckedIn}}" class="checkin-btn" bindtap="checkInToday">
+          <text class="checkin-btn-icon">🎉</text>
+          <text>立即打卡</text>
+        </button>
+        <button wx:else class="checkin-btn disabled" disabled>
+          <text class="checkin-btn-icon">✓</text>
+          <text>今日已打卡</text>
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-header">
+      <view class="section-title">💡 今日建议</view>
+      <view class="section-hint">点击反馈帮助我更好地建议</view>
+    </view>
+    <view class="suggestion-list">
+      <view class="suggestion-item" wx:for="{{suggestions}}" wx:key="id">
+        <view class="suggestion-icon">{{item.icon}}</view>
+        <view class="suggestion-content">
+          <view class="suggestion-title">{{item.title}}</view>
+          <view class="suggestion-desc">{{item.desc}}</view>
+        </view>
+        <view class="suggestion-feedback">
+          <view class="feedback-btn useful" bindtap="onSuggestionFeedback" data-id="{{item.id}}" data-action="useful">
+            <text class="feedback-icon">👍</text>
+            <text class="feedback-text">有用</text>
+          </view>
+          <view class="feedback-btn dismiss" bindtap="onSuggestionFeedback" data-id="{{item.id}}" data-action="dismiss">
+            <text class="feedback-icon">👎</text>
+            <text class="feedback-text">忽略</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-header">
+      <view class="section-title">📊 自我分析</view>
+    </view>
+    <view class="analysis-container">
+      <view class="analysis-card strengths">
+        <view class="analysis-header">
+          <view class="analysis-icon">💪</view>
+          <view class="analysis-label">优势</view>
+          <view class="add-analysis-btn" bindtap="addStrength">+</view>
+        </view>
+        <view class="analysis-list">
+          <view class="analysis-item" wx:for="{{selfAnalysis.strengths}}" wx:key="index">
+            <view class="analysis-dot"></view>
+            <view class="analysis-text" bindtap="editAnalysisItem" data-type="strengths" data-index="{{index}}">{{item}}</view>
+            <view class="analysis-delete-btn" catchtap="deleteAnalysisItem" data-type="strengths" data-index="{{index}}">×</view>
+          </view>
+        </view>
+      </view>
+      <view class="analysis-card weaknesses">
+        <view class="analysis-header">
+          <view class="analysis-icon">📝</view>
+          <view class="analysis-label">改进</view>
+          <view class="add-analysis-btn" bindtap="addWeakness">+</view>
+        </view>
+        <view class="analysis-list">
+          <view class="analysis-item" wx:for="{{selfAnalysis.weaknesses}}" wx:key="index">
+            <view class="analysis-dot"></view>
+            <view class="analysis-text" bindtap="editAnalysisItem" data-type="weaknesses" data-index="{{index}}">{{item}}</view>
+            <view class="analysis-delete-btn" catchtap="deleteAnalysisItem" data-type="weaknesses" data-index="{{index}}">×</view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-header">
+      <view class="section-title">⏰ 高效时段</view>
+      <view class="edit-btn" bindtap="showTimeSlotModal">编辑</view>
+    </view>
+    <view class="time-analysis">
+      <view class="time-bar">
+        <view class="time-segment efficiency-{{item.efficiencyClass}} {{item.selected ? 'selected' : ''}}" wx:for="{{timeSegments}}" wx:key="period" style="height: {{item.efficiency}}%;"></view>
+      </view>
+      <view class="time-labels">
+        <view class="time-label {{item.selected ? 'selected' : ''}}" wx:for="{{timeSegments}}" wx:key="period">{{item.period}}</view>
+      </view>
+      <view class="best-time" wx:if="{{bestTimeSlot}}">
+        <text class="best-icon">🌟</text>
+        <text>你的高效时段：{{bestTimeSlot}}</text>
+      </view>
+      <view class="time-hint">
+        <text>💡 点击编辑可手动选择您偏好的学习时段</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal" wx:if="{{showTimeSlotModal}}" bindtap="closeTimeSlotModal">
+    <view class="modal-content" catchtap="preventClose">
+      <view class="modal-header">
+        <view class="modal-title">选择高效时段</view>
+        <view class="modal-close" bindtap="closeTimeSlotModal">×</view>
+      </view>
+      <view class="slot-options">
+        <view class="slot-option" wx:for="{{timeSegments}}" wx:key="period" bindtap="toggleTimeSlot" data-period="{{item.period}}">
+          <view class="slot-checkbox {{item.selected ? 'checked' : ''}}">
+            <text wx:if="{{item.selected}}">✓</text>
+          </view>
+          <view class="slot-info">
+            <view class="slot-name">{{item.period}}</view>
+            <view class="slot-efficiency">效率评分：{{item.efficiency}}%</view>
+          </view>
+          <view class="slot-range">{{getTimeSlotRange(item.period).split(' ')[1]}}</view>
+        </view>
+      </view>
+      <view class="modal-footer">
+        <button class="modal-btn confirm" bindtap="saveTimeSlots">保存</button>
+        <button class="modal-btn cancel" bindtap="closeTimeSlotModal">取消</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal" wx:if="{{showReportModal}}" bindtap="closeReportModal">
+    <view class="modal-content report-modal" catchtap="preventClose">
+      <view class="modal-header">
+        <view class="modal-title">📊 学习报告</view>
+        <view class="modal-close" bindtap="closeReportModal">×</view>
+      </view>
+      <view class="report-content">
+        <view class="report-section">
+          <view class="report-section-title">近一个月完成率</view>
+          <view class="monthly-chart">
+            <canvas canvas-id="monthlyPieChart" class="monthly-pie-canvas"></canvas>
+            <view class="monthly-stats">
+              <view class="monthly-stat-item">
+                <view class="monthly-stat-value">{{reportData.monthlyCompleted}}</view>
+                <view class="monthly-stat-label">已完成</view>
+              </view>
+              <view class="monthly-stat-item">
+                <view class="monthly-stat-value">{{reportData.monthlyTotal}}</view>
+                <view class="monthly-stat-label">总任务</view>
+              </view>
+              <view class="monthly-stat-item">
+                <view class="monthly-stat-value highlight">{{reportData.monthlyRate}}%</view>
+                <view class="monthly-stat-label">完成率</view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="report-section">
+          <view class="report-section-title">📅 养成的习惯</view>
+          <view wx:if="{{reportData.habits.length === 0}}" class="empty-habits">
+            <view class="empty-habits-icon">🌱</view>
+            <view class="empty-habits-text">正在养成习惯中...</view>
+          </view>
+          <view wx:else class="habits-list">
+            <view class="habit-item" wx:for="{{reportData.habits}}" wx:key="id">
+              <view class="habit-icon">{{item.icon}}</view>
+              <view class="habit-info">
+                <view class="habit-name">{{item.name}}</view>
+                <view class="habit-desc">{{item.desc}}</view>
+              </view>
+              <view class="habit-streak">{{item.streak}}天</view>
+            </view>
+          </view>
+        </view>
+
+        <view class="report-section">
+          <view class="report-section-title">🏆 成就徽章</view>
+          <view class="achievements-grid">
+            <view class="achievement-item" wx:for="{{reportData.achievements}}" wx:key="id">
+              <view class="achievement-icon">{{item.icon}}</view>
+              <view class="achievement-name">{{item.name}}</view>
+            </view>
+          </view>
+        </view>
+
+        <view class="report-section">
+          <view class="report-section-title">📈 学习趋势</view>
+          <view class="trend-chart">
+            <view class="trend-bars">
+              <view class="trend-bar-item" wx:for="{{reportData.weeklyTrend}}" wx:key="week">
+                <view class="trend-bar-fill" style="height: {{item.percent}}%"></view>
+                <view class="trend-bar-label">{{item.week}}</view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="modal-footer">
+        <button class="modal-btn confirm" bindtap="closeReportModal">关闭</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal" wx:if="{{showGoalModal}}" bindtap="closeGoalModal">
+    <view class="modal-content goal-modal" catchtap="preventClose">
+      <view class="modal-header">
+        <view class="modal-title">学习目标设置</view>
+        <view class="modal-close" bindtap="closeGoalModal">×</view>
+      </view>
+      <view class="form-group">
+        <view class="form-label">📚 每日学习时长</view>
+        <view class="duration-options">
+          <view class="duration-option {{studyGoal.dailyDuration === 30 ? 'active' : ''}}" bindtap="setDuration" data-value="30">30分钟</view>
+          <view class="duration-option {{studyGoal.dailyDuration === 45 ? 'active' : ''}}" bindtap="setDuration" data-value="45">45分钟</view>
+          <view class="duration-option {{studyGoal.dailyDuration === 60 ? 'active' : ''}}" bindtap="setDuration" data-value="60">1小时</view>
+          <view class="duration-option {{studyGoal.dailyDuration === 90 ? 'active' : ''}}" bindtap="setDuration" data-value="90">1.5小时</view>
+          <view class="duration-option {{studyGoal.dailyDuration === 120 ? 'active' : ''}}" bindtap="setDuration" data-value="120">2小时</view>
+          <view class="duration-option {{studyGoal.dailyDuration === 150 ? 'active' : ''}}" bindtap="setDuration" data-value="150">2.5小时</view>
+          <view class="duration-option {{studyGoal.dailyDuration === 180 ? 'active' : ''}}" bindtap="setDuration" data-value="180">3小时</view>
+          <view class="duration-option {{studyGoal.dailyDuration === 240 ? 'active' : ''}}" bindtap="setDuration" data-value="240">4小时</view>
+        </view>
+        <view class="custom-duration">
+          <text class="custom-label">自定义时长：</text>
+          <input class="custom-input" type="number" placeholder="输入分钟数" value="{{customDuration}}" bindinput="onCustomDurationInput" confirm-type="done" />
+          <text class="custom-unit">分钟</text>
+        </view>
+      </view>
+      <view class="form-group">
+        <view class="form-label">🎯 学习目标类型</view>
+        <view class="goal-types-edit">
+          <view class="goal-type-edit-item {{studyGoal.types && studyGoal.types.includes('考试备考') ? 'active' : ''}}" bindtap="toggleGoalType" data-type="考试备考">考试备考</view>
+          <view class="goal-type-edit-item {{studyGoal.types && studyGoal.types.includes('技能学习') ? 'active' : ''}}" bindtap="toggleGoalType" data-type="技能学习">技能学习</view>
+          <view class="goal-type-edit-item {{studyGoal.types && studyGoal.types.includes('语言学习') ? 'active' : ''}}" bindtap="toggleGoalType" data-type="语言学习">语言学习</view>
+          <view class="goal-type-edit-item {{studyGoal.types && studyGoal.types.includes('职业发展') ? 'active' : ''}}" bindtap="toggleGoalType" data-type="职业发展">职业发展</view>
+          <view class="goal-type-edit-item {{studyGoal.types && studyGoal.types.includes('兴趣爱好') ? 'active' : ''}}" bindtap="toggleGoalType" data-type="兴趣爱好">兴趣爱好</view>
+          <view class="goal-type-edit-item {{studyGoal.types && studyGoal.types.includes('证书考试') ? 'active' : ''}}" bindtap="toggleGoalType" data-type="证书考试">证书考试</view>
+        </view>
+        <view class="custom-goal-type">
+          <input class="custom-goal-input" placeholder="添加自定义目标类型" value="{{customGoalType}}" bindinput="onCustomGoalTypeInput" confirm-type="done" bindconfirm="addCustomGoalType"/>
+          <view class="add-custom-btn" bindtap="addCustomGoalType">+ 添加</view>
+        </view>
+        <view class="selected-types-list" wx:if="{{studyGoal.types && studyGoal.types.length > 0}}">
+          <view class="selected-type-item" wx:for="{{selectedTypesList}}" wx:key="*this">
+            <view class="selected-type-tag">{{item}}</view>
+            <view class="selected-type-remove" bindtap="removeCustomGoalType" data-type="{{item}}">×</view>
+          </view>
+        </view>
+      </view>
+      <view class="form-group">
+        <view class="form-label">📅 目标截止日期</view>
+        <picker mode="date" value="{{studyGoal.deadline}}" bindchange="onDeadlineChange">
+          <view class="date-picker">
+            <text>{{studyGoal.deadline || '选择日期'}}</text>
+            <text class="picker-arrow">›</text>
+          </view>
+        </picker>
+      </view>
+      <view class="modal-footer">
+        <button class="modal-btn cancel" bindtap="closeGoalModal">取消</button>
+        <button class="modal-btn confirm" bindtap="saveGoal">保存</button>
+      </view>
     </view>
   </view>
 </view>

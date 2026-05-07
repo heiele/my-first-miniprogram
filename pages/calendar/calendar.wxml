@@ -1,0 +1,217 @@
+<!--pages/calendar/calendar.wxml-->
+<view class="page {{theme}}">
+  <view class="view-tabs">
+    <view class="tab-item {{currentView === 'day' ? 'active' : ''}}" bindtap="switchView" data-view="day">日</view>
+    <view class="tab-item {{currentView === 'month' ? 'active' : ''}}" bindtap="switchView" data-view="month">月</view>
+    <view class="tab-item {{currentView === 'year' ? 'active' : ''}}" bindtap="switchView" data-view="year">年</view>
+  </view>
+
+  <view class="date-nav">
+    <view class="nav-btn" bindtap="prevPeriod">◀</view>
+    <view class="current-date">{{currentDateText}}</view>
+    <view class="nav-btn" bindtap="nextPeriod">▶</view>
+  </view>
+
+  <scroll-view wx:if="{{currentView === 'month'}}" class="calendar-scroll" scroll-y bindscrolltolower="loadMore">
+    <view class="desktop-calendar">
+      <view class="calendar-header">
+        <view class="month-year">{{monthYearText}}</view>
+        <view class="calendar-actions">
+          <view class="action-btn" bindtap="showHabitsModal">🎯 习惯</view>
+          <view class="action-btn" bindtap="showAISuggestion">🤖 AI建议</view>
+        </view>
+      </view>
+      <view class="calendar-body">
+        <view class="weekday-row">
+          <view class="weekday">日</view>
+          <view class="weekday">一</view>
+          <view class="weekday">二</view>
+          <view class="weekday">三</view>
+          <view class="weekday">四</view>
+          <view class="weekday">五</view>
+          <view class="weekday">六</view>
+        </view>
+        <view class="days-grid">
+          <view class="day-cell {{item.isToday ? 'today' : ''}} {{item.isCurrentMonth ? '' : 'other-month'}} {{item.isPast ? 'past' : ''}} {{item.isFuture && !item.isToday ? 'future' : ''}}" wx:for="{{monthCells}}" wx:key="date" bindtap="selectDate" data-date="{{item.date}}">
+            <view class="day-number-wrapper">
+              <view class="day-number">{{item.day}}</view>
+              <view class="today-ring" wx:if="{{item.isToday}}"></view>
+            </view>
+            <view class="day-tasks" wx:if="{{item.tasks.length > 0}}">
+              <view class="task-dot {{t.priority}}" wx:for="{{item.tasks}}" wx:for-item="t" wx:key="id"></view>
+            </view>
+            <view class="habit-check" wx:if="{{item.habitCompleted}}">✓</view>
+          </view>
+        </view>
+      </view>
+      <view class="calendar-footer">
+        <view class="legend">
+          <view class="legend-item"><view class="dot high"></view>高优先级</view>
+          <view class="legend-item"><view class="dot medium"></view>中优先级</view>
+          <view class="legend-item"><view class="dot low"></view>低优先级</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="today-tasks-section">
+      <view class="section-header">
+        <view class="section-title">📋 今日任务</view>
+        <view class="section-badge">{{todayTodos.length}}项</view>
+      </view>
+      <view wx:if="{{todayTodos.length === 0}}" class="empty-todo">
+        <view class="empty-icon">📅</view>
+        <view class="empty-text">今日暂无任务</view>
+      </view>
+      <view wx:else class="task-list">
+        <view class="task-item priority-{{item.priority}}" wx:for="{{todayTodos}}" wx:key="id" bindtap="toggleTodo" data-id="{{item.id}}">
+          <view class="task-checkbox {{item.completed ? 'checked' : ''}}">
+            <view wx:if="{{item.completed}}" class="check-icon">✓</view>
+          </view>
+          <view class="task-content">
+            <view class="task-title {{item.completed ? 'completed' : ''}}">{{item.title}}</view>
+            <view class="task-meta">
+              <view class="task-time">⏰ {{item.deadline.split(' ')[1] || item.deadline}}</view>
+              <view class="priority-tag {{item.priority}}">{{priorityLabels[item.priority]}}</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{currentView === 'day'}}" class="day-view">
+    <view class="day-header">
+      <view class="day-title">{{todayText}}</view>
+      <view class="sort-btn" bindtap="showSortOptions">{{sortLabel}} ▼</view>
+    </view>
+    <view class="day-actions">
+      <view class="action-btn" bindtap="showHabitsModal">🎯 习惯</view>
+      <view class="action-btn" bindtap="showAISuggestion">🤖 AI建议</view>
+    </view>
+    <view wx:if="{{sortedTodos.length === 0}}" class="empty-day">
+      <view class="empty-icon">📅</view>
+      <view class="empty-text">今日暂无任务</view>
+      <view class="add-task-btn" bindtap="goToAddTask">+ 添加任务</view>
+    </view>
+    <view wx:else class="todo-list">
+      <view class="todo-item priority-{{item.priority}}" wx:for="{{sortedTodos}}" wx:key="id" bindtap="toggleTodo" data-id="{{item.id}}">
+        <view class="todo-checkbox {{item.completed ? 'checked' : ''}}">
+          <view wx:if="{{item.completed}}" class="check-icon">✓</view>
+        </view>
+        <view class="todo-content">
+          <view class="todo-title {{item.completed ? 'completed' : ''}}">{{item.event}}</view>
+          <view class="todo-meta">
+            <view class="todo-deadline">⏰ {{item.deadline}}</view>
+            <view class="priority-tag {{item.priority}}">{{priorityLabels[item.priority]}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{currentView === 'year'}}" class="year-view">
+    <view class="year-header">
+      <view class="year-title">{{currentDateText}}任务完成统计</view>
+      <view class="year-total">
+        全年共 {{totalTasks}} 个任务，已完成 {{totalCompleted}} 个
+      </view>
+    </view>
+    <view class="year-chart">
+      <view class="chart-bar" wx:for="{{yearMonths}}" wx:key="month">
+        <view class="bar-label">{{item.name}}</view>
+        <view class="bar-container">
+          <view 
+            class="bar-fill completed" 
+            style="height: {{item.completedPercent}}%"
+            data-month="{{item.month}}"
+            bindtap="showMonthDetail"
+          >
+            <view class="bar-tooltip">{{item.completedCount}}个</view>
+          </view>
+          <view 
+            class="bar-fill pending" 
+            style="height: {{item.pendingPercent}}%"
+            data-month="{{item.month}}"
+            bindtap="showMonthDetail"
+          >
+            <view class="bar-tooltip">{{item.pendingCount}}个</view>
+          </view>
+        </view>
+        <view class="bar-stats">
+          <view class="stat-text">完成率 {{item.completedPercent}}%</view>
+        </view>
+      </view>
+    </view>
+    <view class="year-legend">
+      <view class="legend-item">
+        <view class="legend-bar completed"></view>
+        <text>已完成</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-bar pending"></view>
+        <text>待完成</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="sort-modal" wx:if="{{showSortModal}}" bindtap="closeSortModal">
+    <view class="modal-content" catchtap="preventClose">
+      <view class="modal-title">排序方式</view>
+      <view class="sort-option {{sortBy === 'deadline' ? 'selected' : ''}}" bindtap="setSort" data-sort="deadline">⏰ 按截止时间</view>
+      <view class="sort-option {{sortBy === 'priority' ? 'selected' : ''}}" bindtap="setSort" data-sort="priority">⭐ 按重要程度</view>
+      <view class="sort-option {{sortBy === 'interest' ? 'selected' : ''}}" bindtap="setSort" data-sort="interest">❤️ 按兴趣程度</view>
+      <view class="sort-option {{sortBy === 'efficient' ? 'selected' : ''}}" bindtap="setSort" data-sort="efficient">⚡ 高效时段优先</view>
+    </view>
+  </view>
+
+  <view class="habits-modal" wx:if="{{showHabitsModal}}" bindtap="closeHabitsModal">
+    <view class="modal-content habits-content" catchtap="preventClose">
+      <view class="modal-title">🎯 选择良好习惯</view>
+      <view class="modal-tip">选择后将加入21天打卡计划</view>
+      <view class="habits-list">
+        <view class="habit-item {{item.selected ? 'selected' : ''}}" wx:for="{{goodHabits}}" wx:key="id" bindtap="toggleHabit" data-id="{{item.id}}">
+          <view class="habit-icon">{{item.icon}}</view>
+          <view class="habit-info">
+            <view class="habit-name">{{item.name}}</view>
+            <view class="habit-desc">{{item.desc}}</view>
+            <view class="habit-progress" wx:if="{{item.selected}}">
+              <view class="progress-bar">
+                <view class="progress-fill" style="width: {{(item.streak / item.targetDays) * 100}}%"></view>
+              </view>
+              <view class="progress-text">连续{{item.streak}}天 / {{item.targetDays}}天目标</view>
+            </view>
+          </view>
+          <view class="habit-right">
+            <view wx:if="{{item.selected}}" class="checkin-btn" bindtap="checkinHabit" data-id="{{item.id}}" catchtap="preventClose">
+              🎉 打卡
+            </view>
+            <view wx:else class="habit-check">{{item.selected ? '✓' : ''}}</view>
+          </view>
+        </view>
+      </view>
+      <view class="modal-footer">
+        <view class="modal-btn" bindtap="saveHabits">保存</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="ai-modal" wx:if="{{showAIModal}}" bindtap="closeAIModal">
+    <view class="modal-content ai-content" catchtap="preventClose">
+      <view class="modal-title">🤖 AI 智能建议</view>
+      <view class="ai-suggestions">
+        <view class="ai-item {{item.selected ? 'selected' : ''}}" wx:for="{{aiSuggestions}}" wx:key="id" bindtap="toggleAISuggestion" data-id="{{item.id}}">
+          <view class="ai-checkbox {{item.selected ? 'checked' : ''}}">
+            <text wx:if="{{item.selected}}">✓</text>
+          </view>
+          <view class="ai-icon">{{item.icon}}</view>
+          <view class="ai-text">{{item.text}}</view>
+        </view>
+      </view>
+      <view class="ai-tip">基于你的学习习惯和任务完成情况生成</view>
+      <view class="modal-footer">
+        <view class="modal-btn cancel" bindtap="closeAIModal">取消</view>
+        <view class="modal-btn confirm" bindtap="applyAISuggestion">应用建议</view>
+      </view>
+    </view>
+  </view>
+</view>
