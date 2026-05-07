@@ -2,18 +2,15 @@
 <scroll-view class="scrollarea" scroll-y type="list">
   <view class="container">
     <view class="userinfo">
-      <block wx:if="{{canIUseNicknameComp && !hasUserInfo}}">
+      <block wx:if="{{!hasUserInfo}}">
         <button class="avatar-wrapper" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
-          <image class="avatar" src="{{userInfo.avatarUrl}}"></image>
+          <view class="avatar-placeholder">选择头像</view>
         </button>
         <view class="nickname-wrapper">
           <text class="nickname-label">昵称</text>
           <input type="nickname" class="nickname-input" placeholder="请输入昵称" bind:change="onInputChange" />
         </view>
-      </block>
-      <block wx:elif="{{!hasUserInfo}}">
-        <button wx:if="{{canIUseGetUserProfile}}" bindtap="getUserProfile"> 获取头像昵称 </button>
-        <view wx:else> 请使用2.10.4及以上版本基础库 </view>
+        <button class="login-btn-main" bindtap="showLoginModal"> 登录 </button>
       </block>
       <block wx:else>
         <image bindtap="bindViewTap" class="userinfo-avatar" src="{{userInfo.avatarUrl}}" mode="cover"></image>
@@ -25,3 +22,14 @@
     </view>
   </view>
 </scroll-view>
+
+<view class="modal-mask" wx:if="{{showModal}}" bindtap="hideLoginModal">
+  <view class="modal-dialog" catchtap="preventClose">
+    <view class="modal-title">微信授权登录</view>
+    <view class="modal-content">登录后可使用完整功能</view>
+    <view class="modal-buttons">
+      <button class="modal-btn cancel" bindtap="hideLoginModal">暂不登录</button>
+      <button class="modal-btn confirm" open-type="getUserInfo" bindgetuserinfo="onGetUserInfo">确认登录</button>
+    </view>
+  </view>
+</view>

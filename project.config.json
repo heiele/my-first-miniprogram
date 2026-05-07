@@ -1,6 +1,6 @@
 {
   "compileType": "miniprogram",
-  "libVersion": "trial",
+  "libVersion": "2.25.3",
   "packOptions": {
     "ignore": [],
     "include": []
@@ -10,7 +10,7 @@
     "es6": true,
     "postcss": true,
     "minified": true,
-    "enhance": true,
+    "enhance": false,
     "showShadowRootInWxmlPanel": true,
     "packNpmRelationList": [],
     "babelSetting": {
