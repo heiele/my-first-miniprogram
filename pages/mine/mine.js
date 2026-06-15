@@ -11,9 +11,15 @@ Page({
     showSignatureModal: false,
     showNotificationModal: false,
     showPrivacyModal: false,
+    showAnalysisModal: false,
+    showGoalModal: false,
     showPreferenceModal: false,
+    showEditTagModal: false,
     tempNickname: '',
     tempSignature: '',
+    tempTagText: '',
+    editingTagIndex: -1,
+    editingTagType: '',
     notification: {
       taskRemind: true,
       sound: true,
@@ -27,6 +33,26 @@ Page({
       location: false,
       personalized: true
     },
+    strengthTags: [],
+    weaknessTags: [],
+    durationOptions: [
+      { label: '1小时', value: 60 },
+      { label: '2小时', value: 120 },
+      { label: '3小时', value: 180 },
+      { label: '4小时', value: 240 },
+      { label: '5小时', value: 300 },
+      { label: '6小时', value: 360 }
+    ],
+    dailyDuration: 180,
+    goalTags: [
+      { text: '考试备考', selected: false },
+      { text: '技能学习', selected: false },
+      { text: '语言学习', selected: false },
+      { text: '职业发展', selected: false },
+      { text: '兴趣爱好', selected: false },
+      { text: '证书考试', selected: false }
+    ],
+    goalDeadline: '',
     focusOptions: [
       { label: '25分钟', value: 25 },
       { label: '30分钟', value: 30 },
@@ -77,8 +103,16 @@ Page({
     const theme = wx.getStorageSync('theme') || 'light'
     const notification = wx.getStorageSync('notification') || this.data.notification
     const privacy = wx.getStorageSync('privacy') || this.data.privacy
+    const analysis = wx.getStorageSync('selfAnalysis') || { strengths: [], weaknesses: [] }
+    const goal = wx.getStorageSync('studyGoal') || { dailyDuration: 180, types: [], deadline: '' }
     const preference = wx.getStorageSync('studyPreference') || this.data.preference
 
+    const strengthTags = analysis.strengths.map(text => ({ text, selected: true }))
+    const weaknessTags = analysis.weaknesses.map(text => ({ text, selected: true }))
+    const goalTags = this.data.goalTags.map(t => ({
+      ...t,
+      selected: goal.types.includes(t.text)
+    }))
     const timeTags = this.data.timeTags.map(t => ({
       ...t,
       selected: (preference.timeSlots || []).includes(t.text)
@@ -88,6 +122,11 @@ Page({
       theme, 
       notification, 
       privacy, 
+      strengthTags, 
+      weaknessTags,
+      dailyDuration: goal.dailyDuration,
+      goalTags,
+      goalDeadline: goal.deadline,
       preference,
       timeTags
     })
@@ -223,6 +262,112 @@ Page({
     wx.setStorageSync('privacy', privacy)
   },
 
+  showAnalysisModal() {
+    this.setData({ showAnalysisModal: true })
+  },
+  closeAnalysisModal() { this.setData({ showAnalysisModal: false }) },
+
+  toggleStrengthTag(e) {
+    const index = e.currentTarget.dataset.index
+    const tags = [...this.data.strengthTags]
+    tags[index].selected = !tags[index].selected
+    this.setData({ strengthTags: tags })
+  },
+
+  toggleWeaknessTag(e) {
+    const index = e.currentTarget.dataset.index
+    const tags = [...this.data.weaknessTags]
+    tags[index].selected = !tags[index].selected
+    this.setData({ weaknessTags: tags })
+  },
+
+  addStrength(e) {
+    const text = e.detail.value.trim()
+    if (!text) return
+    const tags = [...this.data.strengthTags, { text, selected: true }]
+    this.setData({ strengthTags: tags })
+  },
+
+  addWeakness(e) {
+    const text = e.detail.value.trim()
+    if (!text) return
+    const tags = [...this.data.weaknessTags, { text, selected: true }]
+    this.setData({ weaknessTags: tags })
+  },
+
+  saveAnalysis() {
+    const strengths = this.data.strengthTags.filter(t => t.selected).map(t => t.text)
+    const weaknesses = this.data.weaknessTags.filter(t => t.selected).map(t => t.text)
+    wx.setStorageSync('selfAnalysis', { strengths, weaknesses })
+    wx.showToast({ title: '保存成功', icon: 'success' })
+    this.closeAnalysisModal()
+  },
+
+  deleteStrength(e) {
+    const index = e.currentTarget.dataset.index
+    const tags = this.data.strengthTags.filter((_, i) => i !== index)
+    this.setData({ strengthTags: tags })
+    wx.showToast({ title: '已删除', icon: 'none' })
+  },
+
+  deleteWeakness(e) {
+    const index = e.currentTarget.dataset.index
+    const tags = this.data.weaknessTags.filter((_, i) => i !== index)
+    this.setData({ weaknessTags: tags })
+    wx.showToast({ title: '已删除', icon: 'none' })
+  },
+
+  editStrength(e) {
+    const index = e.currentTarget.dataset.index
+    const text = this.data.strengthTags[index].text
+    this.setData({
+      showEditTagModal: true,
+      tempTagText: text,
+      editingTagIndex: index,
+      editingTagType: 'strength'
+    })
+  },
+
+  editWeakness(e) {
+    const index = e.currentTarget.dataset.index
+    const text = this.data.weaknessTags[index].text
+    this.setData({
+      showEditTagModal: true,
+      tempTagText: text,
+      editingTagIndex: index,
+      editingTagType: 'weakness'
+    })
+  },
+
+  closeEditTagModal() {
+    this.setData({ showEditTagModal: false })
+  },
+
+  onTagInput(e) {
+    this.setData({ tempTagText: e.detail.value })
+  },
+
+  saveTagEdit() {
+    const text = this.data.tempTagText.trim()
+    if (!text) {
+      wx.showToast({ title: '请输入标签内容', icon: 'none' })
+      return
+    }
+
+    if (this.data.editingTagType === 'strength') {
+      const tags = [...this.data.strengthTags]
+      tags[this.data.editingTagIndex].text = text
+      this.setData({ strengthTags: tags })
+    } else {
+      const tags = [...this.data.weaknessTags]
+      tags[this.data.editingTagIndex].text = text
+      this.setData({ weaknessTags: tags })
+    }
+
+    wx.showToast({ title: '修改成功', icon: 'success' })
+    this.closeEditTagModal()
+  },
+
   clearCache() {
     wx.showModal({
       title: '清除缓存',
@@ -268,6 +413,39 @@ Page({
         }
       }
     })
+  },
+
+  showGoalModal() {
+    this.setData({ showGoalModal: true })
+  },
+  closeGoalModal() { this.setData({ showGoalModal: false }) },
+
+  setDailyDuration(e) {
+    const value = parseInt(e.currentTarget.dataset.value)
+    this.setData({ dailyDuration: value })
+  },
+
+  toggleGoalTag(e) {
+    const index = e.currentTarget.dataset.index
+    const tags = [...this.data.goalTags]
+    tags[index].selected = !tags[index].selected
+    this.setData({ goalTags: tags })
+  },
+
+  onDeadlineChange(e) {
+    this.setData({ goalDeadline: e.detail.value })
+  },
+
+  saveGoal() {
+    const types = this.data.goalTags.filter(t => t.selected).map(t => t.text)
+    const goal = {
+      dailyDuration: this.data.dailyDuration,
+      types,
+      deadline: this.data.goalDeadline
+    }
+    wx.setStorageSync('studyGoal', goal)
+    wx.showToast({ title: '目标已保存', icon: 'success' })
+    this.closeGoalModal()
   },
 
   showPreferenceModal() {

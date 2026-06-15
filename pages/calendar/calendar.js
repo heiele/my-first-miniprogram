@@ -135,8 +135,6 @@ Page({
     const today = new Date()
     const todayStr = this.formatDateStr(today)
     const tasks = wx.getStorageSync('taskList') || []
-    const recycleBin = wx.getStorageSync('recycleBin') || []
-    const allTasks = [...tasks, ...recycleBin]
     const habits = wx.getStorageSync('dailyHabits') || {}
 
     const cells = []
@@ -159,7 +157,7 @@ Page({
     for (let i = 1; i <= last.getDate(); i++) {
       const d = new Date(y, m, i)
       const ds = this.formatDateStr(d)
-      const dayTasks = allTasks.filter(t => {
+      const dayTasks = tasks.filter(t => {
         if (!t.date) return false
         const taskDate = t.date.split(' ')[0] || t.date
         return taskDate === ds
@@ -239,10 +237,8 @@ Page({
 
   updateSortedTodos() {
     const tasks = wx.getStorageSync('taskList') || []
-    const recycleBin = wx.getStorageSync('recycleBin') || []
-    const allTasks = [...tasks, ...recycleBin]
     const today = this.formatDateStr(new Date())
-    const todayTasks = allTasks.filter(t => {
+    const todayTasks = tasks.filter(t => {
       if (!t.date) return false
       const taskDate = t.date.split(' ')[0] || t.date
       return taskDate === today
@@ -263,10 +259,8 @@ Page({
 
   loadTodayTodos() {
     const tasks = wx.getStorageSync('taskList') || []
-    const recycleBin = wx.getStorageSync('recycleBin') || []
-    const allTasks = [...tasks, ...recycleBin]
     const today = this.formatDateStr(new Date())
-    const todayTodos = allTasks.filter(t => {
+    const todayTodos = tasks.filter(t => {
       if (!t.date) return false
       const taskDate = t.date.split(' ')[0] || t.date
       return taskDate === today

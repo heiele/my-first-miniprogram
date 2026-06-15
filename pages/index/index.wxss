@@ -1153,10 +1153,6 @@
   line-height: 1;
 }
 
-.analysis-delete-btn::after {
-  border: none;
-}
-
 .analysis-delete-btn:active {
   color: #FF6B6B;
   transform: scale(1.1);

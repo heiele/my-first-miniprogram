@@ -27,64 +27,6 @@ Page({
 
   onLoad() {
     this.updateFormattedTime()
-    this.loadFocusStatistics()
-  },
-
-  onShow() {
-    this.loadFocusStatistics()
-  },
-
-  loadFocusStatistics() {
-    const focusRecords = wx.getStorageSync('focusRecords') || []
-    const today = this.formatDate(new Date())
-    const todayRecords = focusRecords.filter(r => r.date === today && r.mode === 'pomodoro')
-    const completedPomodoros = todayRecords.length
-    
-    const totalMinutes = todayRecords.reduce((sum, r) => sum + r.duration, 0)
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
-    
-    let totalFocusTime = ''
-    if (hours > 0) {
-      totalFocusTime += hours + 'h '
-    }
-    totalFocusTime += minutes + 'm'
-    
-    const streakDays = this.calculateStreakDays(focusRecords)
-    
-    this.setData({ 
-      completedPomodoros, 
-      totalFocusTime,
-      streakDays 
-    })
-  },
-
-  calculateStreakDays(focusRecords) {
-    if (!focusRecords || focusRecords.length === 0) return 0
-    
-    const pomodoroRecords = focusRecords.filter(r => r.mode === 'pomodoro')
-    if (pomodoroRecords.length === 0) return 0
-    
-    const dates = [...new Set(pomodoroRecords.map(r => r.date))].sort().reverse()
-    
-    let streak = 0
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
-    for (let i = 0; i < dates.length; i++) {
-      const recordDate = new Date(dates[i])
-      recordDate.setHours(0, 0, 0, 0)
-      const expectedDate = new Date(today)
-      expectedDate.setDate(expectedDate.getDate() - i)
-      
-      if (recordDate.getTime() === expectedDate.getTime()) {
-        streak++
-      } else {
-        break
-      }
-    }
-    
-    return streak
   },
 
   onUnload() {
@@ -186,8 +128,6 @@ Page({
       }]
       this.setData({ sessionHistory: newHistory })
 
-      this.recordFocusSession(25)
-
       if (this.data.completedPomodoros % 4 === 0) {
         this.switchMode('longBreak')
       } else {
@@ -201,43 +141,5 @@ Page({
       title: this.data.currentMode === 'pomodoro' ? '🍅 完成一个番茄！' : '休息结束！',
       icon: 'none'
     })
-  },
-
-  recordFocusSession(duration) {
-    const focusRecords = wx.getStorageSync('focusRecords') || []
-    focusRecords.push({
-      time: new Date().toISOString(),
-      duration: duration,
-      mode: this.data.currentMode,
-      date: this.formatDate(new Date())
-    })
-    wx.setStorageSync('focusRecords', focusRecords)
-    
-    this.updateTotalFocusTime()
-  },
-
-  formatDate(date) {
-    const y = date.getFullYear()
-    const m = String(date.getMonth() + 1).padStart(2, '0')
-    const d = String(date.getDate()).padStart(2, '0')
-    return y + '-' + m + '-' + d
-  },
-
-  updateTotalFocusTime() {
-    const focusRecords = wx.getStorageSync('focusRecords') || []
-    const today = this.formatDate(new Date())
-    const todayRecords = focusRecords.filter(r => r.date === today && r.mode === 'pomodoro')
-    const totalMinutes = todayRecords.reduce((sum, r) => sum + r.duration, 0)
-    
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
-    
-    let totalFocusTime = ''
-    if (hours > 0) {
-      totalFocusTime += hours + 'h '
-    }
-    totalFocusTime += minutes + 'm'
-    
-    this.setData({ totalFocusTime })
   }
 })

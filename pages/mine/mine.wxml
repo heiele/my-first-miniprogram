@@ -21,6 +21,11 @@
   <view class="section">
     <view class="section-title">个人设置</view>
     <view class="menu-list">
+      <view class="menu-item" bindtap="showAnalysisModal">
+        <view class="menu-icon">📊</view>
+        <view class="menu-text">自我分析</view>
+        <view class="menu-arrow">›</view>
+      </view>
       <view class="menu-item" bindtap="showNotificationModal">
         <view class="menu-icon">🔔</view>
         <view class="menu-text">通知设置</view>
@@ -208,6 +213,60 @@
           <view class="setting-desc">根据习惯推荐学习计划</view>
         </view>
         <switch checked="{{privacy.personalized}}" bindchange="togglePrivacy" data-key="personalized" color="#4A90D9"/>
+      </view>
+    </view>
+  </view>
+
+  <!-- 自我分析弹窗 -->
+  <view class="modal" wx:if="{{showAnalysisModal}}" bindtap="closeAnalysisModal">
+    <view class="modal-content analysis-content" catchtap="preventClose">
+      <view class="modal-header">
+        <view class="modal-title">自我分析</view>
+        <view class="modal-close" bindtap="closeAnalysisModal">×</view>
+      </view>
+      <view class="analysis-section">
+        <view class="analysis-label">💪 优势</view>
+        <view wx:if="{{strengthTags.length === 0}}" class="empty-tip">暂无优势标签，请添加</view>
+        <view class="analysis-tags">
+          <view class="tag-wrap" wx:for="{{strengthTags}}" wx:key="index">
+            <view class="tag {{item.selected ? 'selected' : ''}}" bindtap="toggleStrengthTag" data-index="{{index}}">{{item.text}}</view>
+            <view class="tag-delete" bindtap="deleteStrength" data-index="{{index}}">×</view>
+            <view class="tag-edit" bindtap="editStrength" data-index="{{index}}">✏️</view>
+          </view>
+        </view>
+        <input class="custom-input" placeholder="自定义优势" bindconfirm="addStrength" confirm-type="done"/>
+      </view>
+      <view class="analysis-section">
+        <view class="analysis-label">📝 改进</view>
+        <view wx:if="{{weaknessTags.length === 0}}" class="empty-tip">暂无改进标签，请添加</view>
+        <view class="analysis-tags">
+          <view class="tag-wrap" wx:for="{{weaknessTags}}" wx:key="index">
+            <view class="tag {{item.selected ? 'selected' : ''}}" bindtap="toggleWeaknessTag" data-index="{{index}}">{{item.text}}</view>
+            <view class="tag-delete" bindtap="deleteWeakness" data-index="{{index}}">×</view>
+            <view class="tag-edit" bindtap="editWeakness" data-index="{{index}}">✏️</view>
+          </view>
+        </view>
+        <input class="custom-input" placeholder="自定义改进" bindconfirm="addWeakness" confirm-type="done"/>
+      </view>
+      <view class="modal-footer">
+        <button class="modal-btn confirm" bindtap="saveAnalysis">保存</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 修改标签弹窗 -->
+  <view class="modal" wx:if="{{showEditTagModal}}" bindtap="closeEditTagModal">
+    <view class="modal-content" catchtap="preventClose">
+      <view class="modal-header">
+        <view class="modal-title">修改标签</view>
+        <view class="modal-close" bindtap="closeEditTagModal">×</view>
+      </view>
+      <view class="form-group">
+        <input class="form-input" placeholder="请输入标签内容" value="{{tempTagText}}" bindinput="onTagInput" confirm-type="done" bindconfirm="saveTagEdit"/>
+      </view>
+      <view class="modal-footer">
+        <button class="modal-btn cancel" bindtap="closeEditTagModal">取消</button>
+        <button class="modal-btn confirm" bindtap="saveTagEdit">保存</button>
       </view>
     </view>
   </view>

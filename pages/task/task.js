@@ -20,34 +20,13 @@ Page({
     const today = this.formatDate(now)
     const theme = wx.getStorageSync('theme') || 'light'
     this.setData({ todayDate: today, theme })
-    this.moveExpiredTasksToRecycle()
     this.loadTasks()
   },
 
   onShow() {
     const theme = wx.getStorageSync('theme') || 'light'
     this.setData({ theme })
-    this.moveExpiredTasksToRecycle()
     this.loadTasks()
-  },
-
-  moveExpiredTasksToRecycle() {
-    const today = this.formatDate(new Date())
-    let tasks = wx.getStorageSync('taskList') || []
-    let recycleBin = wx.getStorageSync('recycleBin') || []
-    
-    const expiredTasks = tasks.filter(t => !t.completed && t.date < today)
-    
-    if (expiredTasks.length > 0) {
-      expiredTasks.forEach(task => {
-        recycleBin.push({ ...task, completed: true, completedTime: Date.now(), expired: true })
-      })
-      
-      tasks = tasks.filter(t => !(t.date < today && !t.completed))
-      
-      wx.setStorageSync('taskList', tasks)
-      wx.setStorageSync('recycleBin', recycleBin)
-    }
   },
 
   formatDate(date) {

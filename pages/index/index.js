@@ -430,20 +430,7 @@ Page({
       
       tasks = tasks.filter(t => t.id !== id)
       wx.setStorageSync('taskList', tasks)
-      
-      wx.showActionSheet({
-        itemList: ['添加反思', '仅完成任务'],
-        success: (res) => {
-          if (res.tapIndex === 0) {
-            this.showReflectionOptions(id, task.title)
-          } else {
-            wx.showToast({ title: '已移至回收站', icon: 'success' })
-          }
-        },
-        fail: () => {
-          wx.showToast({ title: '已移至回收站', icon: 'success' })
-        }
-      })
+      wx.showToast({ title: '已移至回收站', icon: 'success' })
     } else if (recycledTask) {
       recycleBin = recycleBin.filter(t => t.id !== id)
       wx.setStorageSync('recycleBin', recycleBin)
@@ -458,33 +445,6 @@ Page({
     this.drawPieChart()
     this.generateSuggestions()
     this.analyzeEfficiency()
-  },
-  
-  showReflectionOptions(taskId, taskTitle) {
-    wx.showActionSheet({
-      itemList: ['任务完成顺利', '任务有难度', '时间安排不合理', '其他'],
-      success: (res) => {
-        const types = ['success', 'difficulty', 'time', 'other']
-        const type = types[res.tapIndex]
-        const isOther = res.tapIndex === 3
-        
-        if (isOther) {
-          wx.showModal({
-            title: '添加反思',
-            editable: true,
-            placeholderText: '请输入反思内容',
-            success: (modalRes) => {
-              if (modalRes.confirm && modalRes.content) {
-                this.saveReflection(taskId, taskTitle, type, modalRes.content.trim())
-              }
-            }
-          })
-        } else {
-          const typeDescriptions = ['任务完成得很好，继续保持！', '遇到了一些难点，需要针对性练习。', '时间安排可以再优化一下。']
-          this.saveReflection(taskId, taskTitle, type, typeDescriptions[res.tapIndex])
-        }
-      }
-    })
   },
 
   recordTaskCompletion(task) {
@@ -967,15 +927,18 @@ Page({
     const item = this.data.selfAnalysis[type][index]
     
     wx.showModal({
-      title: '确认删除',
-      content: `确定要删除"${item}"吗？`,
+      title: type === 'strengths' ? '编辑优势' : '编辑改进项',
+      editable: true,
+      placeholderText: '请输入内容',
+      value: item,
       success: (res) => {
-        if (res.confirm) {
-          const newList = this.data.selfAnalysis[type].filter((_, i) => i !== index)
+        if (res.confirm && res.content.trim()) {
+          const newList = [...this.data.selfAnalysis[type]]
+          newList[index] = res.content.trim()
           const newAnalysis = { ...this.data.selfAnalysis, [type]: newList }
           wx.setStorageSync('selfAnalysis', newAnalysis)
           this.setData({ selfAnalysis: newAnalysis })
-          wx.showToast({ title: '删除成功', icon: 'success' })
+          wx.showToast({ title: '修改成功', icon: 'success' })
           this.generateSuggestions()
         }
       }
@@ -1589,7 +1552,18 @@ Page({
     })
     wx.setStorageSync('taskReflections', reflections)
     
-    wx.showToast({ title: '反思已记录', icon: 'success' })
+    let tasks = wx.getStorageSync('taskList') || []
+    const task = tasks.find(t => t.id === taskId)
+    if (task) {
+      const completedTask = { ...task, completed: true, completedTime: Date.now() }
+      let recycleBin = wx.getStorageSync('recycleBin') || []
+      recycleBin.push(completedTask)
+      wx.setStorageSync('recycleBin', recycleBin)
+      tasks = tasks.filter(t => t.id !== taskId)
+      wx.setStorageSync('taskList', tasks)
+    }
+    
+    wx.showToast({ title: '反思已记录，任务已移至回收站', icon: 'success' })
     this.loadTasks()
     this.generateSuggestions()
     this.drawPieChart()

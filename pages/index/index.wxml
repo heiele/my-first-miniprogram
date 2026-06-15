@@ -205,6 +205,7 @@
   <view class="section">
     <view class="section-header">
       <view class="section-title">📊 自我分析</view>
+      <view class="edit-btn" bindtap="editSelfAnalysis">编辑</view>
     </view>
     <view class="analysis-container">
       <view class="analysis-card strengths">
@@ -217,7 +218,7 @@
           <view class="analysis-item" wx:for="{{selfAnalysis.strengths}}" wx:key="index">
             <view class="analysis-dot"></view>
             <view class="analysis-text" bindtap="editAnalysisItem" data-type="strengths" data-index="{{index}}">{{item}}</view>
-            <view class="analysis-delete-btn" catchtap="deleteAnalysisItem" data-type="strengths" data-index="{{index}}">×</view>
+            <button class="analysis-delete-btn" bindtap="deleteAnalysisItem" data-type="strengths" data-index="{{index}}">×</button>
           </view>
         </view>
       </view>
@@ -231,7 +232,7 @@
           <view class="analysis-item" wx:for="{{selfAnalysis.weaknesses}}" wx:key="index">
             <view class="analysis-dot"></view>
             <view class="analysis-text" bindtap="editAnalysisItem" data-type="weaknesses" data-index="{{index}}">{{item}}</view>
-            <view class="analysis-delete-btn" catchtap="deleteAnalysisItem" data-type="weaknesses" data-index="{{index}}">×</view>
+            <button class="analysis-delete-btn" bindtap="deleteAnalysisItem" data-type="weaknesses" data-index="{{index}}">×</button>
           </view>
         </view>
       </view>
