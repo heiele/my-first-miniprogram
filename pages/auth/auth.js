@@ -2,20 +2,51 @@
 Page({
   data: {},
 
+  onLoad() {
+    this.checkAuth()
+  },
+  
+  checkAuth() {
+    try {
+      const authorized = wx.getStorageSync('authorized')
+      if (authorized) {
+        // 使用 setTimeout 延迟跳转，避免与页面加载冲突
+        setTimeout(() => {
+          wx.switchTab({
+            url: '/pages/index/index',
+            fail: (err) => {
+              console.error('switchTab failed:', err)
+            }
+          })
+        }, 300)
+      }
+    } catch (e) {
+      console.error('checkAuth error:', e)
+    }
+  },
+
   onAuthAgree(e) {
-    if (e.detail.errMsg === 'getUserInfo:ok') {
-      const userInfo = e.detail.userInfo
-      wx.setStorageSync('authorized', true)
-      wx.setStorageSync('nickName', userInfo.nickName)
-      wx.setStorageSync('avatarUrl', userInfo.avatarUrl)
-      wx.switchTab({
-        url: '/pages/index/index'
-      })
-    } else {
-      wx.setStorageSync('authorized', true)
-      wx.switchTab({
-        url: '/pages/index/index'
-      })
+    try {
+      if (e.detail.errMsg === 'getUserInfo:ok') {
+        const userInfo = e.detail.userInfo
+        wx.setStorageSync('authorized', true)
+        wx.setStorageSync('nickName', userInfo.nickName)
+        wx.setStorageSync('avatarUrl', userInfo.avatarUrl)
+      } else {
+        wx.setStorageSync('authorized', true)
+      }
+      
+      // 延迟跳转
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/pages/index/index',
+          fail: (err) => {
+            console.error('switchTab failed:', err)
+          }
+        })
+      }, 300)
+    } catch (e) {
+      console.error('onAuthAgree error:', e)
     }
   },
 

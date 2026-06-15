@@ -80,8 +80,35 @@ Page({
   },
 
   onLoad() {
-    this.loadUserData()
-    this.loadSettings()
+    this.initPage()
+  },
+  
+  async initPage() {
+    try {
+      await this.safeExecute('loadUserData', () => this.loadUserData())
+      await this.safeExecute('loadSettings', () => this.loadSettings())
+    } catch (e) {
+      console.error('mine page init error:', e)
+    }
+  },
+  
+  safeExecute(name, fn) {
+    return new Promise(resolve => {
+      const timer = setTimeout(() => {
+        console.warn(`${name} timeout, continuing`)
+        resolve()
+      }, 3000)
+      
+      try {
+        fn()
+        clearTimeout(timer)
+        resolve()
+      } catch (e) {
+        clearTimeout(timer)
+        console.error(`${name} error:`, e)
+        resolve()
+      }
+    })
   },
 
   onShow() {

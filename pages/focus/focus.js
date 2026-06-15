@@ -26,7 +26,34 @@ Page({
   },
 
   onLoad() {
-    this.updateFormattedTime()
+    this.initPage()
+  },
+  
+  async initPage() {
+    try {
+      await this.safeExecute('updateFormattedTime', () => this.updateFormattedTime())
+    } catch (e) {
+      console.error('focus page init error:', e)
+    }
+  },
+  
+  safeExecute(name, fn) {
+    return new Promise(resolve => {
+      const timer = setTimeout(() => {
+        console.warn(`${name} timeout, continuing`)
+        resolve()
+      }, 3000)
+      
+      try {
+        fn()
+        clearTimeout(timer)
+        resolve()
+      } catch (e) {
+        clearTimeout(timer)
+        console.error(`${name} error:`, e)
+        resolve()
+      }
+    })
   },
 
   onUnload() {

@@ -1,29 +1,18 @@
 // app.js
 App({
   onLaunch() {
-    this.initApp()
-  },
-  
-  async initApp() {
-    try {
-      const authorized = wx.getStorageSync('authorized')
-      if (authorized) {
-        const timer = setTimeout(() => {
-          console.warn('switchTab timeout, continuing')
-        }, 5000)
-        
-        wx.switchTab({
-          url: '/pages/index/index',
-          success: () => clearTimeout(timer),
-          fail: () => clearTimeout(timer)
-        })
-      }
-    } catch (e) {
-      console.error('app init error:', e)
-    }
+    // 不在这里做页面跳转，让页面自己处理
+    console.log('App launched')
   },
   
   globalData: {
-    userInfo: null
+    userInfo: null,
+    themeConfig: {
+      primary: '#4A90D9',
+      bg: '#f5f6f8',
+      text: '#333',
+      card: '#fff',
+      accent: '#4A90D9'
+    }
   }
 })
