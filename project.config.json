@@ -1,41 +1,16 @@
 {
-  "compileType": "miniprogram",
-  "libVersion": "2.25.3",
   "packOptions": {
-    "ignore": [],
-    "include": []
+    "include": [],
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "/minitest"
+      },
+      {
+        "type": "folder",
+        "value": "minitest"
+      }
+    ]
   },
-  "setting": {
-    "coverView": true,
-    "es6": true,
-    "postcss": true,
-    "minified": true,
-    "enhance": false,
-    "showShadowRootInWxmlPanel": true,
-    "packNpmRelationList": [],
-    "babelSetting": {
-      "ignore": [],
-      "disablePlugins": [],
-      "outputPath": ""
-    },
-    "compileWorklet": false,
-    "uglifyFileName": false,
-    "uploadWithSourceMap": true,
-    "packNpmManually": false,
-    "minifyWXSS": true,
-    "minifyWXML": true,
-    "localPlugins": false,
-    "condition": false,
-    "swc": false,
-    "disableSWC": true,
-    "disableUseStrict": false,
-    "useCompilerPlugins": false
-  },
-  "condition": {},
-  "editorSetting": {
-    "tabIndent": "auto",
-    "tabSize": 2
-  },
-  "appid": "wx405b9a51f8ad43e4",
-  "simulatorPluginLibVersion": {}
+  "testRoot": "minitest/"
 }
