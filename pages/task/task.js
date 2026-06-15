@@ -16,11 +16,39 @@ Page({
   },
 
   onLoad() {
-    const now = new Date()
-    const today = this.formatDate(now)
-    const theme = wx.getStorageSync('theme') || 'light'
-    this.setData({ todayDate: today, theme })
-    this.loadTasks()
+    this.initPage()
+  },
+  
+  async initPage() {
+    try {
+      const now = new Date()
+      const today = this.formatDate(now)
+      const theme = wx.getStorageSync('theme') || 'light'
+      this.setData({ todayDate: today, theme })
+      
+      await this.safeExecute('loadTasks', () => this.loadTasks())
+    } catch (e) {
+      console.error('task page init error:', e)
+    }
+  },
+  
+  safeExecute(name, fn) {
+    return new Promise(resolve => {
+      const timer = setTimeout(() => {
+        console.warn(`${name} timeout, continuing`)
+        resolve()
+      }, 3000)
+      
+      try {
+        fn()
+        clearTimeout(timer)
+        resolve()
+      } catch (e) {
+        clearTimeout(timer)
+        console.error(`${name} error:`, e)
+        resolve()
+      }
+    })
   },
 
   onShow() {

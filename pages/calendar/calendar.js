@@ -36,11 +36,39 @@ Page({
   },
 
   onLoad() {
-    const now = new Date()
-    const theme = wx.getStorageSync('theme') || 'light'
-    this.setData({ currentDateStr: this.formatDateStr(now), theme })
-    this.updateAll()
-    this.loadHabits()
+    this.initPage()
+  },
+  
+  async initPage() {
+    try {
+      const now = new Date()
+      const theme = wx.getStorageSync('theme') || 'light'
+      this.setData({ currentDateStr: this.formatDateStr(now), theme })
+      
+      await this.safeExecute('updateAll', () => this.updateAll())
+      await this.safeExecute('loadHabits', () => this.loadHabits())
+    } catch (e) {
+      console.error('calendar page init error:', e)
+    }
+  },
+  
+  safeExecute(name, fn) {
+    return new Promise(resolve => {
+      const timer = setTimeout(() => {
+        console.warn(`${name} timeout, continuing`)
+        resolve()
+      }, 3000)
+      
+      try {
+        fn()
+        clearTimeout(timer)
+        resolve()
+      } catch (e) {
+        clearTimeout(timer)
+        console.error(`${name} error:`, e)
+        resolve()
+      }
+    })
   },
 
   onShow() {

@@ -64,18 +64,46 @@ Page({
   },
 
   onLoad() {
-    const nickName = wx.getStorageSync('nickName') || '同学'
-    const theme = wx.getStorageSync('theme') || 'light'
-    this.setData({ nickName, theme })
-    this.setGreeting()
-    this.setTodayDate()
-    this.moveExpiredTasksToRecycle()
-    this.loadTasks()
-    this.loadWeeklyData()
-    this.loadSelfAnalysis()
-    this.analyzeEfficiency()
-    this.loadStudyGoal()
-    this.generateSuggestions()
+    this.initPage()
+  },
+  
+  async initPage() {
+    try {
+      const nickName = wx.getStorageSync('nickName') || '同学'
+      const theme = wx.getStorageSync('theme') || 'light'
+      this.setData({ nickName, theme })
+      
+      await this.safeExecute('setGreeting', () => this.setGreeting())
+      await this.safeExecute('setTodayDate', () => this.setTodayDate())
+      await this.safeExecute('moveExpiredTasksToRecycle', () => this.moveExpiredTasksToRecycle())
+      await this.safeExecute('loadTasks', () => this.loadTasks())
+      await this.safeExecute('loadWeeklyData', () => this.loadWeeklyData())
+      await this.safeExecute('loadSelfAnalysis', () => this.loadSelfAnalysis())
+      await this.safeExecute('analyzeEfficiency', () => this.analyzeEfficiency())
+      await this.safeExecute('loadStudyGoal', () => this.loadStudyGoal())
+      await this.safeExecute('generateSuggestions', () => this.generateSuggestions())
+    } catch (e) {
+      console.error('index page init error:', e)
+    }
+  },
+  
+  safeExecute(name, fn) {
+    return new Promise(resolve => {
+      const timer = setTimeout(() => {
+        console.warn(`${name} timeout, continuing`)
+        resolve()
+      }, 3000)
+      
+      try {
+        fn()
+        clearTimeout(timer)
+        resolve()
+      } catch (e) {
+        clearTimeout(timer)
+        console.error(`${name} error:`, e)
+        resolve()
+      }
+    })
   },
 
   onShow() {
