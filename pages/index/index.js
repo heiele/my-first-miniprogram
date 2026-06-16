@@ -1,4 +1,6 @@
 // pages/index/index.js
+const { taskApi } = require('../../utils/api')
+
 Page({
   data: {
     nickName: '同学',
@@ -163,41 +165,47 @@ Page({
     }
   },
 
-  loadTasks() {
-    const tasks = wx.getStorageSync('taskList') || []
-    const today = this.formatDate(new Date())
-    const todayTasks = tasks.filter(t => t.date === today)
-    
-    const processedTasks = todayTasks.map(t => {
-      const deadline = new Date(t.deadline.replace(' ', 'T'))
-      const now = new Date()
-      const score = this.calculateSmartScore(t, deadline, now)
-      const countdown = this.calculateCountdown(deadline, now)
-      const priorityClass = score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low'
-      return {
-        id: t.id,
-        event: t.title,
-        deadline: t.deadline.split(' ')[1] || t.deadline,
-        completed: t.completed,
-        priority: t.priority,
-        score,
-        priorityClass,
-        countdown
-      }
-    }).sort((a, b) => {
-      if (a.completed !== b.completed) return a.completed ? 1 : -1
-      return b.score - a.score
-    })
+  async loadTasks() {
+    try {
+      const tasks = await taskApi.getAll()
+      const today = this.formatDate(new Date())
+      const todayTasks = tasks.filter(t => t.date === today)
+      
+      const processedTasks = todayTasks.map(t => {
+        const deadline = new Date(t.deadline ? t.deadline.replace(' ', 'T') : new Date())
+        const now = new Date()
+        const score = this.calculateSmartScore(t, deadline, now)
+        const countdown = this.calculateCountdown(deadline, now)
+        const priorityClass = score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low'
+        return {
+          id: t.id,
+          event: t.title,
+          deadline: t.deadline ? t.deadline.split(' ')[1] || t.deadline : '',
+          completed: t.completed === 1,
+          priority: t.priority,
+          score,
+          priorityClass,
+          countdown
+        }
+      }).sort((a, b) => {
+        if (a.completed !== b.completed) return a.completed ? 1 : -1
+        return b.score - a.score
+      })
 
-    const focusTasks = processedTasks.filter(t => !t.completed).slice(0, 3)
+      const focusTasks = processedTasks.filter(t => !t.completed).slice(0, 3)
 
-    const completedCount = todayTasks.filter(t => t.completed).length
-    const totalCount = todayTasks.length
-    const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+      const completedCount = todayTasks.filter(t => t.completed === 1).length
+      const totalCount = todayTasks.length
+      const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
-    this.setData({ todoList: processedTasks, completedCount, totalCount, completionRate, focusTasks })
-    
-    this.checkReminders()
+      this.setData({ todoList: processedTasks, completedCount, totalCount, completionRate, focusTasks })
+      
+      this.checkReminders()
+    } catch (err) {
+      console.error('加载任务失败:', err)
+      wx.showToast({ title: '加载任务失败', icon: 'none' })
+      this.setData({ todoList: [], completedCount: 0, totalCount: 0, completionRate: 0, focusTasks: [] })
+    }
   },
 
   calculateSmartScore(task, deadline, now) {
@@ -441,33 +449,20 @@ Page({
     ctx.draw()
   },
 
-  toggleTodo(e) {
+  async toggleTodo(e) {
     const id = e.currentTarget.dataset.id
-    let tasks = wx.getStorageSync('taskList') || []
-    let recycleBin = wx.getStorageSync('recycleBin') || []
     
-    const task = tasks.find(t => t.id === id)
-    const recycledTask = recycleBin.find(t => t.id === id)
-    
-    if (task && !task.completed) {
-      const completedTask = { ...task, completed: true, completedTime: Date.now(), completionDate: this.formatDate(new Date()) }
-      recycleBin.push(completedTask)
-      wx.setStorageSync('recycleBin', recycleBin)
-      
-      this.recordTaskCompletion(task)
-      
-      tasks = tasks.filter(t => t.id !== id)
-      wx.setStorageSync('taskList', tasks)
-      wx.showToast({ title: '已移至回收站', icon: 'success' })
-    } else if (recycledTask) {
-      recycleBin = recycleBin.filter(t => t.id !== id)
-      wx.setStorageSync('recycleBin', recycleBin)
-      
-      const restoredTask = { ...recycledTask, completed: false, completedTime: null, completionDate: null }
-      tasks.push(restoredTask)
-      wx.setStorageSync('taskList', tasks)
-      wx.showToast({ title: '已恢复', icon: 'success' })
+    try {
+      const task = this.data.todoList.find(t => t.id === id)
+      if (task) {
+        await taskApi.complete(id)
+        wx.showToast({ title: task.completed ? '已恢复' : '已完成', icon: 'success' })
+      }
+    } catch (err) {
+      console.error('切换任务状态失败:', err)
+      wx.showToast({ title: '操作失败', icon: 'none' })
     }
+    
     this.loadTasks()
     this.loadWeeklyData()
     this.drawPieChart()

@@ -905,3 +905,98 @@
   background: #3d3d54;
   color: #ccc;
 }
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 300rpx;
+}
+
+.loading-spinner {
+  width: 80rpx;
+  height: 80rpx;
+  border: 6rpx solid #f3f3f3;
+  border-top: 6rpx solid #4A90D9;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  margin-top: 30rpx;
+  font-size: 28rpx;
+  color: #999;
+}
+
+.page.dark .loading-spinner {
+  border-color: #3d3d54;
+  border-top-color: #667eea;
+}
+
+.page.dark .loading-text {
+  color: #ccc;
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 300rpx;
+}
+
+.error-icon {
+  font-size: 120rpx;
+  margin-bottom: 30rpx;
+}
+
+.error-text {
+  font-size: 30rpx;
+  color: #666;
+  margin-bottom: 30rpx;
+  text-align: center;
+  padding: 0 40rpx;
+}
+
+.retry-btn {
+  padding: 20rpx 60rpx;
+  background: #4A90D9;
+  color: #fff;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+}
+
+.page.dark .error-text {
+  color: #ccc;
+}
+
+.page.dark .retry-btn {
+  background: #667eea;
+}
+
+.sync-indicator {
+  position: absolute;
+  top: 24rpx;
+  right: 80rpx;
+  z-index: 1;
+}
+
+.sync-spinner {
+  width: 32rpx;
+  height: 32rpx;
+  border: 3rpx solid rgba(74, 144, 217, 0.3);
+  border-top: 3rpx solid #4A90D9;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.page.dark .sync-spinner {
+  border-color: rgba(102, 126, 234, 0.3);
+  border-top-color: #667eea;
+}

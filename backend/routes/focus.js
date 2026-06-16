@@ -1,21 +1,24 @@
-// backend/routes/focus.js
 const express = require('express')
 const router = express.Router()
 const { db } = require('../config/database')
 const { v4: uuidv4 } = require('uuid')
 
-// 获取专注记录
-router.get('/', (req, res) => {
+function saveDatabase() {
+  const fs = require('fs')
+  const path = require('path')
+  const dbPath = path.join(__dirname, '../data/miniapp.json')
+  fs.writeFileSync(dbPath, JSON.stringify(db, null, 2))
+}
+
+router.get('/', async (req, res) => {
   try {
     const userId = req.query.userId || 'default'
     const limit = parseInt(req.query.limit) || 50
 
-    const records = db.prepare(`
-      SELECT * FROM focus_records
-      WHERE user_id = ?
-      ORDER BY started_at DESC
-      LIMIT ?
-    `).all(userId, limit)
+    let records = db.focus_records || []
+    records = records.filter(r => r.user_id === userId)
+    records.sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
+    records = records.slice(0, limit)
 
     res.json({ success: true, data: records })
   } catch (err) {
@@ -23,25 +26,24 @@ router.get('/', (req, res) => {
   }
 })
 
-// 获取今日专注统计
-router.get('/today', (req, res) => {
+router.get('/today', async (req, res) => {
   try {
     const userId = req.query.userId || 'default'
     const today = new Date().toISOString().split('T')[0]
 
-    const stats = db.prepare(`
-      SELECT 
-        COUNT(*) as session_count,
-        COALESCE(SUM(duration), 0) as total_minutes
-      FROM focus_records
-      WHERE user_id = ? AND date(started_at) = ?
-    `).get(userId, today)
+    let records = db.focus_records || []
+    const todayRecords = records.filter(r => 
+      r.user_id === userId && r.started_at && r.started_at.split('T')[0] === today
+    )
+    
+    const sessionCount = todayRecords.length
+    const totalMinutes = todayRecords.reduce((sum, r) => sum + (r.duration || 0), 0)
 
     res.json({
       success: true,
       data: {
-        sessionCount: stats.session_count || 0,
-        totalMinutes: stats.total_minutes || 0
+        sessionCount,
+        totalMinutes
       }
     })
   } catch (err) {
@@ -49,8 +51,7 @@ router.get('/today', (req, res) => {
   }
 })
 
-// 获取周统计
-router.get('/weekly', (req, res) => {
+router.get('/weekly', async (req, res) => {
   try {
     const userId = req.query.userId || 'default'
     const today = new Date()
@@ -63,16 +64,16 @@ router.get('/weekly', (req, res) => {
       date.setDate(weekStart.getDate() + i)
       const dateStr = date.toISOString().split('T')[0]
 
-      const stats = db.prepare(`
-        SELECT COALESCE(SUM(duration), 0) as total_minutes
-        FROM focus_records
-        WHERE user_id = ? AND date(started_at) = ?
-      `).get(userId, dateStr)
+      let focusRecords = db.focus_records || []
+      const dayRecords = focusRecords.filter(r => 
+        r.user_id === userId && r.started_at && r.started_at.split('T')[0] === dateStr
+      )
+      const minutes = dayRecords.reduce((sum, r) => sum + (r.duration || 0), 0)
 
       records.push({
         date: dateStr,
         day: ['一', '二', '三', '四', '五', '六', '日'][i],
-        minutes: stats.total_minutes || 0
+        minutes
       })
     }
 
@@ -82,8 +83,7 @@ router.get('/weekly', (req, res) => {
   }
 })
 
-// 创建专注记录
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { userId = 'default', duration, type, startedAt, endedAt } = req.body
 
@@ -94,10 +94,19 @@ router.post('/', (req, res) => {
     const id = uuidv4()
     const now = new Date().toISOString()
 
-    db.prepare(`
-      INSERT INTO focus_records (id, user_id, duration, type, started_at, ended_at, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, userId, duration, type || 'pomodoro', startedAt || now, endedAt || now, now)
+    const newRecord = {
+      id,
+      user_id: userId,
+      duration,
+      type: type || 'pomodoro',
+      started_at: startedAt || now,
+      ended_at: endedAt || now,
+      created_at: now
+    }
+
+    if (!db.focus_records) db.focus_records = []
+    db.focus_records.push(newRecord)
+    saveDatabase()
 
     res.json({ success: true, data: { id, duration, type } })
   } catch (err) {
@@ -105,10 +114,12 @@ router.post('/', (req, res) => {
   }
 })
 
-// 删除专注记录
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    db.prepare('DELETE FROM focus_records WHERE id = ?').run(req.params.id)
+    if (!db.focus_records) db.focus_records = []
+    db.focus_records = db.focus_records.filter(r => r.id !== req.params.id)
+    saveDatabase()
+    
     res.json({ success: true, message: '记录已删除' })
   } catch (err) {
     res.status(500).json({ success: false, error: err.message })

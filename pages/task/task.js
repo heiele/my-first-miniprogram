@@ -1,5 +1,6 @@
 // pages/task/task.js
 const app = getApp()
+const { taskApi } = require('../../utils/api')
 
 Page({
   data: {
@@ -12,7 +13,11 @@ Page({
     sortBy: 'smart',
     formData: { title: '', description: '', priority: 'medium', date: '', time: '', interest: 50, subtasks: [] },
     todayDate: '',
-    eisenhowerFilter: 'all'
+    eisenhowerFilter: 'all',
+    loading: false,
+    loadingText: '加载中...',
+    error: null,
+    syncingIds: []
   },
 
   onLoad() {
@@ -26,29 +31,11 @@ Page({
       const theme = wx.getStorageSync('theme') || 'light'
       this.setData({ todayDate: today, theme })
       
-      await this.safeExecute('loadTasks', () => this.loadTasks())
+      await this.loadTasks()
     } catch (e) {
       console.error('task page init error:', e)
+      this.setData({ error: '页面初始化失败', loading: false })
     }
-  },
-  
-  safeExecute(name, fn) {
-    return new Promise(resolve => {
-      const timer = setTimeout(() => {
-        console.warn(`${name} timeout, continuing`)
-        resolve()
-      }, 3000)
-      
-      try {
-        fn()
-        clearTimeout(timer)
-        resolve()
-      } catch (e) {
-        clearTimeout(timer)
-        console.error(`${name} error:`, e)
-        resolve()
-      }
-    })
   },
 
   onShow() {
@@ -64,12 +51,10 @@ Page({
     return y + '-' + m + '-' + d
   },
 
-  
-
   processTask(task) {
     const now = new Date()
-    const deadline = new Date(task.deadline.replace(' ', 'T'))
-    const isOverdue = !task.completed && deadline < now
+    const deadline = new Date((task.deadline || '').replace(' ', 'T'))
+    const isOverdue = !task.completed && deadline < now && !isNaN(deadline.getTime())
     const completedSubtasks = task.subtasks ? task.subtasks.filter(s => s.completed).length : 0
     const score = this.calculateSmartScore(task, deadline, now)
     const eisenhowerCategory = this.getEisenhowerCategory(task, deadline, now)
@@ -80,21 +65,25 @@ Page({
   calculateSmartScore(task, deadline, now) {
     let score = 0
     
-    const timeDiff = deadline - now
-    const hoursLeft = timeDiff / (1000 * 60 * 60)
-    
-    if (hoursLeft < 0) {
-      score += 100
-    } else if (hoursLeft < 1) {
-      score += 85
-    } else if (hoursLeft < 6) {
-      score += 70
-    } else if (hoursLeft < 24) {
-      score += 55
-    } else if (hoursLeft < 48) {
-      score += 40
+    if (isNaN(deadline.getTime())) {
+      score += 30
     } else {
-      score += Math.max(10, 30 - hoursLeft / 24)
+      const timeDiff = deadline - now
+      const hoursLeft = timeDiff / (1000 * 60 * 60)
+      
+      if (hoursLeft < 0) {
+        score += 100
+      } else if (hoursLeft < 1) {
+        score += 85
+      } else if (hoursLeft < 6) {
+        score += 70
+      } else if (hoursLeft < 24) {
+        score += 55
+      } else if (hoursLeft < 48) {
+        score += 40
+      } else {
+        score += Math.max(10, 30 - hoursLeft / 24)
+      }
     }
     
     const priorityBonus = { high: 30, medium: 15, low: 0 }
@@ -118,10 +107,15 @@ Page({
   },
 
   getEisenhowerCategory(task, deadline, now) {
+    if (isNaN(deadline.getTime())) {
+      const isImportant = task.priority === 'high' || (task.interest && task.interest > 70)
+      return isImportant ? 'schedule' : 'eliminate'
+    }
+    
     const timeDiff = deadline - now
     const hoursLeft = timeDiff / (1000 * 60 * 60)
     const isUrgent = hoursLeft < 24 || task.priority === 'high'
-    const isImportant = task.priority === 'high' || task.interest > 70
+    const isImportant = task.priority === 'high' || (task.interest && task.interest > 70)
     
     if (isUrgent && isImportant) return 'do'
     if (!isUrgent && isImportant) return 'schedule'
@@ -130,6 +124,10 @@ Page({
   },
 
   calculateCountdown(deadline, now) {
+    if (isNaN(deadline.getTime())) {
+      return { text: '无截止时间', type: 'normal' }
+    }
+    
     const timeDiff = deadline - now
     if (timeDiff < 0) {
       const absDiff = Math.abs(timeDiff)
@@ -163,7 +161,7 @@ Page({
     } else if (this.data.sortBy === 'deadline') {
       arr.sort((a, b) => {
         if (a.completed !== b.completed) return a.completed ? 1 : -1
-        return new Date(a.deadline) - new Date(b.deadline)
+        return new Date(a.deadline || '') - new Date(b.deadline || '')
       })
     } else if (this.data.sortBy === 'priority') {
       arr.sort((a, b) => {
@@ -173,7 +171,7 @@ Page({
     } else {
       arr.sort((a, b) => {
         if (a.completed !== b.completed) return a.completed ? 1 : -1
-        return b.createTime - a.createTime
+        return (b.created_at || 0) - (a.created_at || 0)
       })
     }
     return arr
@@ -185,76 +183,33 @@ Page({
     return tasks.filter(t => t.eisenhowerCategory === filter)
   },
 
-  loadTasks() {
-    let tasks = wx.getStorageSync('taskList') || []
-    const processed = tasks.map(t => this.processTask(t))
-    const filtered = this.filterByEisenhower(processed)
-    this.setData({ taskList: this.sortTasks(filtered) })
-  },
-
-  getDefaultTasks() {
-    const now = Date.now()
-    const tomorrow = new Date(now + 24 * 60 * 60 * 1000)
-    const nextWeek = new Date(now + 7 * 24 * 60 * 60 * 1000)
+  async loadTasks() {
+    this.setData({ loading: true, loadingText: '加载任务中...', error: null })
     
-    return [
-      {
-        id: now - 3,
-        title: '完成项目报告',
-        description: '整理本周项目进展，撰写周报并准备周五汇报',
-        priority: 'high',
-        deadline: tomorrow.toISOString().slice(0, 16).replace('T', ' '),
-        date: tomorrow.toISOString().slice(0, 10),
-        interest: 80,
-        completed: false,
-        subtasks: [
-          { id: 1, title: '收集数据', completed: true },
-          { id: 2, title: '撰写报告', completed: false },
-          { id: 3, title: '制作PPT', completed: false }
-        ],
-        createTime: now - 3
-      },
-      {
-        id: now - 2,
-        title: '学习微信小程序开发',
-        description: '完成官方文档阅读和基础示例练习',
-        priority: 'medium',
-        deadline: nextWeek.toISOString().slice(0, 16).replace('T', ' '),
-        date: nextWeek.toISOString().slice(0, 10),
-        interest: 90,
-        completed: false,
-        subtasks: [
-          { id: 4, title: '阅读基础文档', completed: true },
-          { id: 5, title: '实践组件API', completed: true },
-          { id: 6, title: '开发Demo项目', completed: false }
-        ],
-        createTime: now - 2
-      },
-      {
-        id: now - 1,
-        title: '健身运动',
-        description: '每周三次有氧运动，保持身体健康',
-        priority: 'low',
-        deadline: new Date(now + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' '),
-        date: new Date(now + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-        interest: 75,
-        completed: false,
-        subtasks: [],
-        createTime: now - 1
-      },
-      {
-        id: now,
-        title: '整理工作文档',
-        description: '清理过期文件，归档重要资料',
-        priority: 'low',
-        deadline: new Date(now + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' '),
-        date: new Date(now + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-        interest: 40,
-        completed: false,
-        subtasks: [],
-        createTime: now
-      }
-    ]
+    try {
+      const serverTasks = await taskApi.getAll()
+      
+      let processed = serverTasks.map(t => this.processTask(t))
+      processed = this.filterByEisenhower(processed)
+      
+      this.setData({ 
+        taskList: this.sortTasks(processed),
+        loading: false,
+        error: null
+      })
+      
+      wx.setStorageSync('taskList', serverTasks)
+    } catch (err) {
+      console.error('load tasks error:', err)
+      const localTasks = wx.getStorageSync('taskList') || []
+      const processed = localTasks.map(t => this.processTask(t))
+      
+      this.setData({ 
+        taskList: this.sortTasks(this.filterByEisenhower(processed)),
+        loading: false,
+        error: '网络异常，显示本地数据'
+      })
+    }
   },
 
   changeEisenhowerFilter(e) {
@@ -321,7 +276,7 @@ Page({
     this.setData({ 'formData.subtasks': arr })
   },
 
-  saveTask() {
+  async saveTask() {
     const { title, date, time, priority, description, interest, subtasks } = this.data.formData
     if (!title.trim()) { wx.showToast({ title: '请输入任务名称', icon: 'none' }); return }
     if (!date || !time) { wx.showToast({ title: '请选择截止时间', icon: 'none' }); return }
@@ -329,44 +284,58 @@ Page({
     const deadline = date + ' ' + time
     const sts = subtasks.filter(s => s.trim()).map((t, i) => ({ id: Date.now() + i, title: t.trim(), completed: false }))
 
-    let tasks = wx.getStorageSync('taskList') || []
-
-    if (this.data.editingTask) {
-      tasks = tasks.map(t => t.id === this.data.editingTask.id
-        ? { ...t, title: title.trim(), description: description.trim(), priority, deadline, date, interest, subtasks: sts }
-        : t)
-    } else {
-      tasks.push({
-        id: Date.now(),
-        title: title.trim(),
-        description: description.trim(),
-        priority,
-        deadline,
-        date,
-        interest,
-        completed: false,
-        subtasks: sts,
-        createTime: Date.now()
-      })
+    const newTask = {
+      title: title.trim(),
+      description: description.trim(),
+      priority,
+      deadline,
+      date,
+      interest: parseInt(interest) || 50,
+      completed: false,
+      subtasks: sts
     }
 
-    wx.setStorageSync('taskList', tasks)
-    wx.showToast({ title: '保存成功', icon: 'success' })
-    this.closeModal()
-    this.loadTasks()
+    if (this.data.editingTask) {
+      newTask.id = this.data.editingTask.id
+      newTask.created_at = this.data.editingTask.created_at
+    }
+
+    this.setData({ loading: true, loadingText: '保存中...' })
+
+    try {
+      const result = this.data.editingTask 
+        ? await taskApi.update(newTask.id, newTask)
+        : await taskApi.create(newTask)
+
+      wx.showToast({ title: this.data.editingTask ? '更新成功' : '添加成功', icon: 'success' })
+      this.closeModal()
+      await this.loadTasks()
+    } catch (err) {
+      console.error('save task error:', err)
+      this.setData({ loading: false })
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+    }
   },
 
-  deleteTask(e) {
+  async deleteTask(e) {
     const id = e.currentTarget.dataset.id
     wx.showModal({
-      title: '确认删除', content: '确定要删除这个任务吗？',
-      success: (res) => {
+      title: '确认删除', 
+      content: '确定要删除这个任务吗？',
+      success: async (res) => {
         if (res.confirm) {
-          let tasks = wx.getStorageSync('taskList') || []
-          tasks = tasks.filter(t => t.id !== id)
-          wx.setStorageSync('taskList', tasks)
-          wx.showToast({ title: '删除成功', icon: 'success' })
-          this.loadTasks()
+          this.setData({ loading: true, loadingText: '删除中...' })
+          
+          try {
+            await taskApi.delete(id)
+            
+            wx.showToast({ title: '删除成功', icon: 'success' })
+            await this.loadTasks()
+          } catch (err) {
+            console.error('delete task error:', err)
+            this.setData({ loading: false })
+            wx.showToast({ title: '删除失败，请重试', icon: 'none' })
+          }
         }
       }
     })
@@ -377,28 +346,53 @@ Page({
     this.setData({ expandedTask: this.data.expandedTask === id ? null : id })
   },
 
-  toggleComplete(e) {
+  async toggleComplete(e) {
     const id = e.currentTarget.dataset.id
-    let tasks = wx.getStorageSync('taskList') || []
-    const task = tasks.find(t => t.id === id)
-    if (task && !task.completed) {
-      const completedTask = { 
-        ...task, 
-        completed: true, 
-        completedTime: Date.now(),
-        completionDate: this.formatDate(new Date())
-      }
-      let recycleBin = wx.getStorageSync('recycleBin') || []
-      recycleBin.push(completedTask)
-      wx.setStorageSync('recycleBin', recycleBin)
-      
+    const task = this.data.taskList.find(t => t.id === id)
+    if (!task) return
+
+    const isCompleting = !task.completed
+    const newCompleted = isCompleting
+
+    const updatedTasks = this.data.taskList.map(t => 
+      t.id === id ? { ...t, completed: newCompleted } : t
+    )
+    const processed = updatedTasks.map(t => this.processTask(t))
+    
+    this.setData({ 
+      taskList: this.sortTasks(this.filterByEisenhower(processed)),
+      syncingIds: [...this.data.syncingIds, id]
+    })
+
+    if (isCompleting) {
       this.recordTaskCompletion(task)
-      
-      tasks = tasks.filter(t => t.id !== id)
-      wx.setStorageSync('taskList', tasks)
-      wx.showToast({ title: '已移至回收站', icon: 'success' })
     }
-    this.loadTasks()
+
+    try {
+      await taskApi.complete(id)
+      
+      this.setData({ syncingIds: this.data.syncingIds.filter(i => i !== id) })
+      
+      if (isCompleting) {
+        let recycleBin = wx.getStorageSync('recycleBin') || []
+        recycleBin.push({ ...task, completed: true, completedTime: Date.now(), completionDate: this.formatDate(new Date()) })
+        wx.setStorageSync('recycleBin', recycleBin)
+        
+        await this.loadTasks()
+      }
+      
+      wx.showToast({ title: isCompleting ? '已完成' : '已取消', icon: 'success' })
+    } catch (err) {
+      console.error('toggle complete error:', err)
+      this.setData({ syncingIds: this.data.syncingIds.filter(i => i !== id) })
+      
+      const revertedTasks = this.data.taskList.map(t => 
+        t.id === id ? { ...t, completed: !newCompleted } : t
+      )
+      this.setData({ taskList: this.sortTasks(this.filterByEisenhower(revertedTasks.map(t => this.processTask(t)))) })
+      
+      wx.showToast({ title: '操作失败，请重试', icon: 'none' })
+    }
   },
 
   recordTaskCompletion(task) {
@@ -414,28 +408,47 @@ Page({
     wx.setStorageSync('taskCompletionRecords', completionRecords)
   },
 
-  toggleSubtask(e) {
+  async toggleSubtask(e) {
     const taskId = e.currentTarget.dataset.taskId
     const subId = e.currentTarget.dataset.subId
-    let tasks = wx.getStorageSync('taskList') || []
+    
+    let tasks = [...this.data.taskList]
+    let updatedTask = null
+    
     tasks = tasks.map(t => {
       if (t.id === taskId) {
-        return { ...t, subtasks: t.subtasks.map(s => s.id === subId ? { ...s, completed: !s.completed } : s) }
+        const updatedSubtasks = t.subtasks.map(s => s.id === subId ? { ...s, completed: !s.completed } : s)
+        updatedTask = { ...t, subtasks: updatedSubtasks }
+        return updatedTask
       }
       return t
     })
-    wx.setStorageSync('taskList', tasks)
-    this.loadTasks()
+    
+    this.setData({ 
+      taskList: this.sortTasks(this.filterByEisenhower(tasks.map(t => this.processTask(t)))),
+      syncingIds: [...this.data.syncingIds, taskId]
+    })
+
+    try {
+      if (updatedTask) {
+        await taskApi.update(taskId, { subtasks: updatedTask.subtasks })
+      }
+      this.setData({ syncingIds: this.data.syncingIds.filter(i => i !== taskId) })
+    } catch (err) {
+      console.error('toggle subtask error:', err)
+      this.setData({ syncingIds: this.data.syncingIds.filter(i => i !== taskId) })
+      await this.loadTasks()
+      wx.showToast({ title: '操作失败，请重试', icon: 'none' })
+    }
   },
 
   editTask(e) {
     const id = e.currentTarget.dataset.id
-    const tasks = wx.getStorageSync('taskList') || []
-    const task = tasks.find(t => t.id === id)
+    const task = this.data.taskList.find(t => t.id === id)
     if (!task) return
 
-    const deadlineParts = task.deadline.split(' ')
-    const date = deadlineParts[0] || ''
+    const deadlineParts = (task.deadline || '').split(' ')
+    const date = deadlineParts[0] || this.formatDate(new Date())
     const time = deadlineParts[1] || '12:00'
 
     this.setData({
@@ -461,5 +474,9 @@ Page({
     wx.navigateTo({
       url: '/pages/task/recycle/recycle'
     })
+  },
+
+  refreshTasks() {
+    this.loadTasks()
   }
 })

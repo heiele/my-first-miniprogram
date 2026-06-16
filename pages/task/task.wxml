@@ -3,7 +3,18 @@
   <view class="add-btn" bindtap="showAddModal">+</view>
   <view class="recycle-btn" bindtap="goToRecycle">🗑️</view>
 
-  <view wx:if="{{taskList.length === 0}}" class="empty-state">
+  <view wx:if="{{loading}}" class="loading-state">
+    <view class="loading-spinner"></view>
+    <view class="loading-text">{{loadingText}}</view>
+  </view>
+
+  <view wx:elif="{{error}}" class="error-state">
+    <view class="error-icon">❌</view>
+    <view class="error-text">{{error}}</view>
+    <view class="retry-btn" bindtap="refreshTasks">🔄 重试</view>
+  </view>
+
+  <view wx:elif="{{taskList.length === 0}}" class="empty-state">
     <view class="empty-icon">📝</view>
     <view class="empty-text">{{eisenhowerFilter === 'all' ? '暂无任务' : '该分类暂无任务'}}</view>
     <view class="empty-tip" wx:if="{{eisenhowerFilter === 'all'}}">点击右下角 + 添加你的第一个任务</view>
@@ -34,6 +45,9 @@
     </view>
 
     <view class="task-card priority-{{item.priority}}" wx:for="{{taskList}}" wx:key="id" bindtap="toggleExpand" data-id="{{item.id}}">
+      <view class="sync-indicator" wx:if="{{syncingIds.includes(item.id)}}">
+        <view class="sync-spinner"></view>
+      </view>
       <view class="priority-indicator" style="background: {{item.score >= 80 ? '#ef4444' : item.score >= 50 ? '#f59e0b' : '#22c55e'}};"></view>
       <view class="task-header">
         <view class="task-checkbox {{item.completed ? 'checked' : ''}}" catchtap="toggleComplete" data-id="{{item.id}}">
@@ -175,7 +189,7 @@
 
       <view class="modal-footer">
         <button class="modal-btn cancel" bindtap="closeModal">取消</button>
-        <button class="modal-btn confirm" bindtap="saveTask">保存</button>
+        <button class="modal-btn confirm" bindtap="saveTask">{{editingTask ? '更新' : '保存'}}</button>
       </view>
     </view>
   </view>

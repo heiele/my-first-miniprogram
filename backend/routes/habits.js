@@ -1,30 +1,36 @@
-// backend/routes/habits.js
 const express = require('express')
 const router = express.Router()
 const { db } = require('../config/database')
 const { v4: uuidv4 } = require('uuid')
 
-// 获取用户习惯列表
-router.get('/', (req, res) => {
+function saveDatabase() {
+  const fs = require('fs')
+  const path = require('path')
+  const dbPath = path.join(__dirname, '../data/miniapp.json')
+  fs.writeFileSync(dbPath, JSON.stringify(db, null, 2))
+}
+
+router.get('/', async (req, res) => {
   try {
     const userId = req.query.userId || 'default'
 
-    const habits = db.prepare(`
-      SELECT h.*,
-        (SELECT COUNT(*) FROM habit_checkins WHERE habit_id = h.id) as total_checkins
-      FROM habits h
-      WHERE h.user_id = ?
-      ORDER BY h.created_at DESC
-    `).all(userId)
+    let habits = db.habits || []
+    habits = habits.filter(h => h.user_id === userId)
+    habits.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
-    res.json({ success: true, data: habits })
+    const result = habits.map(h => {
+      let checkins = db.habit_checkins || []
+      const totalCheckins = checkins.filter(c => c.habit_id === h.id).length
+      return { ...h, total_checkins: totalCheckins }
+    })
+
+    res.json({ success: true, data: result })
   } catch (err) {
     res.status(500).json({ success: false, error: err.message })
   }
 })
 
-// 创建习惯
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { userId = 'default', name, icon, description, targetDays } = req.body
 
@@ -35,10 +41,20 @@ router.post('/', (req, res) => {
     const id = uuidv4()
     const now = new Date().toISOString()
 
-    db.prepare(`
-      INSERT INTO habits (id, user_id, name, icon, description, target_days, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, userId, name, icon || '📝', description || '', targetDays || 21, now)
+    const newHabit = {
+      id,
+      user_id: userId,
+      name,
+      icon: icon || '📝',
+      description: description || '',
+      target_days: targetDays || 21,
+      streak: 0,
+      created_at: now
+    }
+
+    if (!db.habits) db.habits = []
+    db.habits.push(newHabit)
+    saveDatabase()
 
     res.json({ success: true, data: { id, name, icon, streak: 0 } })
   } catch (err) {
@@ -46,73 +62,79 @@ router.post('/', (req, res) => {
   }
 })
 
-// 获取习惯打卡记录
-router.get('/:habitId/checkins', (req, res) => {
+router.get('/:habitId/checkins', async (req, res) => {
   try {
-    const checkins = db.prepare(`
-      SELECT checkin_date FROM habit_checkins
-      WHERE habit_id = ?
-      ORDER BY checkin_date DESC
-    `).all(req.params.habitId)
+    let checkins = db.habit_checkins || []
+    const habitCheckins = checkins
+      .filter(c => c.habit_id === req.params.habitId)
+      .map(c => c.checkin_date)
+      .sort((a, b) => new Date(b) - new Date(a))
 
-    res.json({ success: true, data: checkins.map(c => c.checkin_date) })
+    res.json({ success: true, data: habitCheckins })
   } catch (err) {
     res.status(500).json({ success: false, error: err.message })
   }
 })
 
-// 打卡
-router.post('/:habitId/checkin', (req, res) => {
+router.post('/:habitId/checkin', async (req, res) => {
   try {
     const habitId = req.params.habitId
     const { userId = 'default' } = req.body
     const today = new Date().toISOString().split('T')[0]
 
-    // 检查是否已打卡
-    const existing = db.prepare(`
-      SELECT id FROM habit_checkins 
-      WHERE habit_id = ? AND checkin_date = ?
-    `).get(habitId, today)
+    let checkins = db.habit_checkins || []
+    const existing = checkins.find(c => c.habit_id === habitId && c.checkin_date === today)
 
     if (existing) {
       return res.json({ success: true, message: '今日已打卡', alreadyCheckedIn: true })
     }
 
-    // 打卡
-    db.prepare(`
-      INSERT INTO habit_checkins (id, habit_id, user_id, checkin_date)
-      VALUES (?, ?, ?, ?)
-    `).run(uuidv4(), habitId, userId, today)
+    checkins.push({
+      id: uuidv4(),
+      habit_id: habitId,
+      user_id: userId,
+      checkin_date: today,
+      created_at: new Date().toISOString()
+    })
+    
+    db.habit_checkins = checkins
 
-    // 更新连续天数
-    const checkins = db.prepare(`
-      SELECT checkin_date FROM habit_checkins
-      WHERE habit_id = ?
-      ORDER BY checkin_date DESC
-    `).all(habitId)
+    const habitCheckins = checkins
+      .filter(c => c.habit_id === habitId)
+      .map(c => c.checkin_date)
+      .sort((a, b) => new Date(b) - new Date(a))
 
-    let streak = calculateStreak(checkins.map(c => c.checkin_date))
-    db.prepare('UPDATE habits SET streak = ? WHERE id = ?').run(streak, habitId)
+    let streak = calculateStreak(habitCheckins)
+    
+    let habits = db.habits || []
+    const habitIndex = habits.findIndex(h => h.id === habitId)
+    if (habitIndex !== -1) {
+      habits[habitIndex].streak = streak
+      db.habits = habits
+    }
 
+    saveDatabase()
     res.json({ success: true, message: '打卡成功', streak, alreadyCheckedIn: false })
   } catch (err) {
     res.status(500).json({ success: false, error: err.message })
   }
 })
 
-// 删除习惯
-router.delete('/:habitId', (req, res) => {
+router.delete('/:habitId', async (req, res) => {
   try {
-    db.prepare('DELETE FROM habit_checkins WHERE habit_id = ?').run(req.params.habitId)
-    db.prepare('DELETE FROM habits WHERE id = ?').run(req.params.habitId)
+    if (!db.habit_checkins) db.habit_checkins = []
+    db.habit_checkins = db.habit_checkins.filter(c => c.habit_id !== req.params.habitId)
     
+    if (!db.habits) db.habits = []
+    db.habits = db.habits.filter(h => h.id !== req.params.habitId)
+    
+    saveDatabase()
     res.json({ success: true, message: '习惯已删除' })
   } catch (err) {
     res.status(500).json({ success: false, error: err.message })
   }
 })
 
-// 计算连续打卡天数
 function calculateStreak(checkins) {
   if (!checkins || checkins.length === 0) return 0
 
