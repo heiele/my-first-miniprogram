@@ -5,6 +5,22 @@
     <view class="date-text">{{todayDate}}</view>
   </view>
 
+  <view class="info-row" wx:if="{{weather || dailyQuote}}">
+    <view class="weather-card" wx:if="{{weather}}">
+      <view class="weather-icon">☀️</view>
+      <view class="weather-info">
+        <view class="weather-city">{{weather.city}}</view>
+        <view class="weather-temp">{{weather.temperature}}°C</view>
+      </view>
+      <view class="weather-desc">{{weather.description}}</view>
+    </view>
+    <view class="quote-card" wx:if="{{dailyQuote}}">
+      <view class="quote-icon">💭</view>
+      <view class="quote-content">「{{dailyQuote.content}}」</view>
+      <view class="quote-author">—— {{dailyQuote.author}}</view>
+    </view>
+  </view>
+
   <view class="quick-actions">
     <view class="action-item" bindtap="goToTask">
       <view class="action-icon">➕</view>

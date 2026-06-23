@@ -1,5 +1,5 @@
 // pages/index/index.js
-const { taskApi } = require('../../utils/api')
+const { taskApi, thirdPartyApi } = require('../../utils/api')
 
 Page({
   data: {
@@ -59,6 +59,8 @@ Page({
       weeklyTrend: []
     },
     focusTasks: [],
+    weather: null,
+    dailyQuote: null,
     pendingReminders: [],
     reminderInterval: null,
     customGoalType: '',
@@ -84,6 +86,8 @@ Page({
       await this.safeExecute('analyzeEfficiency', () => this.analyzeEfficiency())
       await this.safeExecute('loadStudyGoal', () => this.loadStudyGoal())
       await this.safeExecute('generateSuggestions', () => this.generateSuggestions())
+      await this.safeExecute('loadWeather', () => this.loadWeather())
+      await this.safeExecute('loadDailyQuote', () => this.loadDailyQuote())
     } catch (e) {
       console.error('index page init error:', e)
     }
@@ -1596,5 +1600,23 @@ Page({
   loadSelfAnalysis() {
     const analysis = wx.getStorageSync('selfAnalysis') || { strengths: [], weaknesses: [] }
     this.setData({ selfAnalysis: analysis })
+  },
+
+  async loadWeather() {
+    try {
+      const weather = await thirdPartyApi.getWeather('Beijing')
+      this.setData({ weather })
+    } catch (err) {
+      console.error('加载天气失败:', err)
+    }
+  },
+
+  async loadDailyQuote() {
+    try {
+      const quote = await thirdPartyApi.getDailyQuote()
+      this.setData({ dailyQuote: quote })
+    } catch (err) {
+      console.error('加载每日一句失败:', err)
+    }
   }
 })
